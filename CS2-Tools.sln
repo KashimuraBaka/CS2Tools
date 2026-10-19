@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SDK", "SDK\SDK.csproj", "{30D2B7A9-5361-4CB3-BFBF-C873BF215DDF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetCompilerWpf", "AssetCompilerWpf\AssetCompilerWpf.csproj", "{3CC58520-C243-4C01-AB02-032BF0EFFD59}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetCompiler", "AssetCompiler\AssetCompiler.csproj", "{3CC58520-C243-4C01-AB02-032BF0EFFD59}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompileHost", "CompileHost\CompileHost.csproj", "{78F9C229-BB70-4E2B-B082-CE034A26193E}"
 EndProject

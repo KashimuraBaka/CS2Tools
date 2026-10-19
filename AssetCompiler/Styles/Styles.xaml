@@ -1,5 +1,5 @@
 <!--
-  Styles.xaml —— AssetCompilerWpf 的 Fluent 主题补充样式（t17）。
+  Styles.xaml —— AssetCompiler 的 Fluent 主题补充样式（t17）。
 
   为什么需要这个文件：.NET 10 内置 Fluent 主题（App.xaml ThemeMode="System"）**不覆盖 DataGrid**，
   而 DataGrid 是本品四个面板的主力控件。此处只补 DataGrid 一族与其依赖的画刷/尺寸，

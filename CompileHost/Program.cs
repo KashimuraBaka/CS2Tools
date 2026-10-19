@@ -1,6 +1,6 @@
 
 // ============================================================================
-// CompileHost — AssetCompilerWpf 的**进程外编译 worker**。
+// CompileHost — AssetCompiler 的**进程外编译 worker**。
 //
 // 为什么必须进程外：t12 实测证明，resourcecompiler.dll 的编译路径
 //   AssetConfig_Init / GenerateResourceFile 在**裸进程**里会 0xC0000005
@@ -16,7 +16,7 @@
 // 退出码：0 = 跑到并产出 result；3 = 参数/文件错误；134/139 等 = 原生崩溃
 //         （Windows 上未处理异常通常是 0xC0000005，进程被kill后 shell 报负数）。
 //
-// 落位：随 WPF 工具本体放 tools\csharp\AssetCompilerWpf\CompileHost\
+// 落位：随 WPF 工具本体放 tools\csharp\AssetCompiler\CompileHost\
 //        （它是工具的组成部分，不是测试/探针；测试源与试跑日志在 temp\t49-probes\）。
 // ============================================================================
 

@@ -1,4 +1,4 @@
-# `projects\CS2-Tools\AssetCompilerWpf` — CS2 资产编译工具（tier0 KeyValues + resourcecompiler.dll）
+# `projects\CS2-Tools\AssetCompiler` — CS2 资产编译工具（tier0 KeyValues + resourcecompiler.dll）
 > 用 **tier0.dll 原生 KV3 API**（不引任何三方 KV 库）加载 `assettypes_common.txt`（KV3 文本），
 > 并对 vmdl/vdata/vnmgraph 等资产调用 `resourcecompiler.dll` 编译、展示结果。
 >
@@ -15,8 +15,8 @@
 ## 1. 工程与运行
 
 ```
-projects\CS2-Tools\AssetCompilerWpf\        ← 根目录仅入口与工程文件
-├── AssetCompilerWpf.csproj      net10.0-windows + UseWPF + x64 + AllowUnsafeBlocks
+projects\CS2-Tools\AssetCompiler\        ← 根目录仅入口与工程文件
+├── AssetCompiler.csproj      net10.0-windows + UseWPF + x64 + AllowUnsafeBlocks
 ├── App.xaml / App.xaml.cs       应用入口（合并 Styles\Styles.xaml）+ --selftest 无头自检
 ├── MainWindow.xaml / .cs        主窗口入口（五个面板）
 ├── README.md                    本文件
@@ -28,12 +28,12 @@ projects\CS2-Tools\AssetCompilerWpf\        ← 根目录仅入口与工程文�
 ```
 
 ```powershell
-dotnet build projects\CS2-Tools\AssetCompilerWpf\AssetCompilerWpf.csproj -c Release      # 0 warning 0 error
-dotnet run   --project projects\CS2-Tools\AssetCompilerWpf\AssetCompilerWpf.csproj -c Release
+dotnet build projects\CS2-Tools\AssetCompiler\AssetCompiler.csproj -c Release      # 0 warning 0 error
+dotnet run   --project projects\CS2-Tools\AssetCompiler\AssetCompiler.csproj -c Release
 # 无头自检（CI / 复核用，无需点 GUI）
-projects\CS2-Tools\AssetCompilerWpf\bin\Release\net10.0-windows\AssetCompilerWpf.exe --selftest
+projects\CS2-Tools\AssetCompiler\bin\Release\net10.0-windows\AssetCompiler.exe --selftest
 # GUI 启动冒烟（t15 教训：自检 ALL PASS ≠ GUI 能起来；交付 WPF 必须额外做这个）
-$p = Start-Process projects\CS2-Tools\AssetCompilerWpf\bin\Release\net10.0-windows\AssetCompilerWpf.exe -PassThru
+$p = Start-Process projects\CS2-Tools\AssetCompiler\bin\Release\net10.0-windows\AssetCompiler.exe -PassThru
 Start-Sleep -Seconds 8; if ($p.HasExited) { throw "GUI 启动即退出 exit=$($p.ExitCode)" } else { Stop-Process -Id $p.Id }
 ```
 
@@ -91,7 +91,7 @@ WPF 文本链（`TextFormatterImp → FontFaceLayoutInfo → MS.Internal.FontCac
 ⇒ 本工程（UseWPF）**必须保持 `InvariantGlobalization=false`**；改它之前先读 `asset_compiler_wpf_report.md` §6。
 
 ## 4. 落位纪律（t49 规则）
-* 本工程位于 `projects\CS2-Tools\AssetCompilerWpf\`——**任何项目（工程）一律写 `projects\`**（t49 队长裁定，规则见 `docs\meta\structure_guide.md` §0）；`tools\` 只放通用检查/分析工具与共享库（如 `tools\csharp\NativeStringFunctionInvoker.cs`）。
+* 本工程位于 `projects\CS2-Tools\AssetCompiler\`——**任何项目（工程）一律写 `projects\`**（t49 队长裁定，规则见 `docs\meta\structure_guide.md` §0）；`tools\` 只放通用检查/分析工具与共享库（如 `tools\csharp\NativeStringFunctionInvoker.cs`）。
 * 本目录 = **工程本体**（不硬编码任何索引副本——游戏自带的 assettypes_common.txt 是唯一正本）；分析类 md 不写入 `projects\`。
 * 测试/探针/测试源/试跑日志 → `temp\t49-probes\`（可清空、须可复现）；唯一证据（自检输出、host 输出、GUI 冒烟日志）已引用进 `docs\dlls\ResourceCompiler.dll\` 下的报告。
 

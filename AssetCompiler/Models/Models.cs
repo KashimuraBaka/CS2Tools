@@ -1,7 +1,7 @@
 // ============================================================================
-// 数据模型 —— AssetCompilerWpf（t18：KV3 值模型已沉入 SDK.Tier0，此处只留 UI 行模型）
+// 数据模型 —— AssetCompiler（t18：KV3 值模型已沉入 SDK.Tier0，此处只留 UI 行模型）
 // ============================================================================
-namespace AssetCompilerWpf.Models;
+namespace AssetCompiler.Models;
 
 /// <summary>assettypes 的一个主类型条目（对应 SDK.Data.AssetTypesIndex 的一行）。</summary>
 /// <remarks>行是不可变的（init-only）；筛选时重建 ItemsSource，故不需要 INotifyPropertyChanged。</remarks>

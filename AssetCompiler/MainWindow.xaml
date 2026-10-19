@@ -1,5 +1,5 @@
 
-<Window x:Class="AssetCompilerWpf.MainWindow"
+<Window x:Class="AssetCompiler.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="CS2 Asset Compiler (tier0 KeyValues + resourcecompiler.dll)"

@@ -1,7 +1,7 @@
 # projects\CS2-Tools\SDK — CS2 SDK DLL 调用层
 
 > 把散落各处的 DLL import 代码集中到**一个工程**，对外只暴露托管 API。
-> 上游调用方（`projects\CS2-Tools\AssetCompilerWpf\`、`tools\csharp\InvokerSmokeTest\`）不再直接出现 P/Invoke；
+> 上游调用方（`projects\CS2-Tools\AssetCompiler\`、`tools\csharp\InvokerSmokeTest\`）不再直接出现 P/Invoke；
 > 原生细节全部收敛在本工程内。
 
 ## 1. 架构（三层）
@@ -43,7 +43,7 @@ projects\CS2-Tools\SDK\
 | 编译器解析 | `SDK.ResourceCompiler.RegistryService.Read(dllPath)` / `.Resolve(snap, id)` | 标识符 → 条目 / 工厂 RVA / 单例 RVA；表头 RVA 运行时自校验 |
 | 编译调用 | `SDK.ResourceCompiler.CompilerInterop` + `SDK.CompileHost` | **只在隔离子进程内执行**（见 §4） |
 
-UI 层只面对上述托管 API；`AssetCompilerWpf` 里的 `RegistryService` / `Kv3ConfigService`
+UI 层只面对上述托管 API；`AssetCompiler` 里的 `RegistryService` / `Kv3ConfigService`
 已退化为**薄封装**（适配行模型 + 保留友好错误语义）。
 
 ## 3. 关键 ABI 事实清单
@@ -186,7 +186,7 @@ CSV↔JSON 名称双向 **0 差异**。
 
 ```powershell
 dotnet build projects\CS2-Tools\SDK\SDK.csproj -c Release                       # 0 警告 0 错误
-dotnet build projects\CS2-Tools\AssetCompilerWpf\AssetCompilerWpf.csproj -c Release
+dotnet build projects\CS2-Tools\AssetCompiler\AssetCompiler.csproj -c Release
 tools\csharp\InvokerSmokeTest\bin\Release\net10.0-windows\InvokerSmokeTest.exe 1 2 3 4   # T1-T4
 ```
 

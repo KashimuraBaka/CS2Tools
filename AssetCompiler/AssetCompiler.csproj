@@ -10,8 +10,8 @@
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>AssetCompilerWpf</AssemblyName>
-    <RootNamespace>AssetCompilerWpf</RootNamespace>
+    <AssemblyName>AssetCompiler</AssemblyName>
+    <RootNamespace>AssetCompiler</RootNamespace>
     <!-- WPF 必须关闭 globalization-invariant 模式（t15 修复，勿改回 true）：
          WPF 文本排版链路 TextFormatterImp -> SimpleRun -> FontFaceLayoutInfo.ComputeTypographyAvailabilities
          -> MS.Internal.FontCache.MajorLanguages 需要真实 CultureInfo；invariant 模式下该静态构造器抛

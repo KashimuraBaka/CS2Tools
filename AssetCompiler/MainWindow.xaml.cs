@@ -7,15 +7,15 @@
 //   CompileResourceRemapTable，注册表无此条）。28 个可解析条目跨 26 distinct
 //   （CompilePanorama 3→1）。**UI 用条目级（28/29）**，distinct 级（26/27）另列，不混用。
 // ============================================================================
-using AssetCompilerWpf.Models;
-using AssetCompilerWpf.Services;
+using AssetCompiler.Models;
+using AssetCompiler.Services;
 using Microsoft.Win32;
 using SDK.ResourceCompiler;
 using System.Windows;
 using System.Windows.Controls;
-using RegistryService = AssetCompilerWpf.Services.RegistryService;   // UI 薄封装（与 SDK.ResourceCompiler.RegistryService 同名，别名定向）
+using RegistryService = AssetCompiler.Services.RegistryService;   // UI 薄封装（与 SDK.ResourceCompiler.RegistryService 同名，别名定向）
 
-namespace AssetCompilerWpf;
+namespace AssetCompiler;
 
 public partial class MainWindow : Window
 {

@@ -1,14 +1,14 @@
-using AssetCompilerWpf.Services;
+using AssetCompiler.Services;
 using SDK.ResourceCompiler;
 using System.Windows;
-using RegistryService = AssetCompilerWpf.Services.RegistryService;   // UI 薄封装（与 SDK.ResourceCompiler.RegistryService 同名，别名定向）
+using RegistryService = AssetCompiler.Services.RegistryService;   // UI 薄封装（与 SDK.ResourceCompiler.RegistryService 同名，别名定向）
 
-namespace AssetCompilerWpf;
+namespace AssetCompiler;
 
 public partial class App : Application
 {
     /// <summary>
-    /// 无头自检：AssetCompilerWpf.exe --selftest [configPath]
+    /// 无头自检：AssetCompiler.exe --selftest [configPath]
     /// 加载真实配置 + 读注册表 + 逐个解析 29 个标识符 + 
     /// 全部打印到 stdout 后退出。用于 CI / 复核，无需点 GUI。
     /// 退出码：0 = 全部通过；1 = 有不通过项。

@@ -7,7 +7,7 @@
 // ============================================================================
 using SDK.ResourceCompiler;
 
-namespace AssetCompilerWpf.Services;
+namespace AssetCompiler.Services;
 
 public static class RegistryService
 {
@@ -18,12 +18,12 @@ public static class RegistryService
     public static void ValidateTable(RegistrySnapshot snap) => SDK.ResourceCompiler.RegistryService.ValidateTable(snap);
 
     /// <summary>按标识符解析条目（UI 口径：条目级 28/29）。</summary>
-    public static AssetCompilerWpf.Models.ResolveResult Resolve(RegistrySnapshot snap, string identifier)
+    public static AssetCompiler.Models.ResolveResult Resolve(RegistrySnapshot snap, string identifier)
     {
         var hit = SDK.ResourceCompiler.RegistryService.Resolve(snap, identifier);
         if (!hit.Found)
         {
-            return new AssetCompilerWpf.Models.ResolveResult
+            return new AssetCompiler.Models.ResolveResult
             {
                 Found = false,
                 Identifier = identifier,
@@ -33,12 +33,12 @@ public static class RegistryService
         }
 
         var e = hit.Entry!;
-        return new AssetCompilerWpf.Models.ResolveResult
+        return new AssetCompiler.Models.ResolveResult
         {
             Found = true,
             Identifier = identifier,
             Message = "命中 idx " + e.Index,
-            Entry = new AssetCompilerWpf.Models.RegistryEntryRow
+            Entry = new AssetCompiler.Models.RegistryEntryRow
             {
                 Index = e.Index,
                 Identifier = e.Identifier,

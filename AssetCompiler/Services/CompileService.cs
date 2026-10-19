@@ -17,7 +17,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 
-namespace AssetCompilerWpf.Services;
+namespace AssetCompiler.Services;
 
 public sealed class CompileOutcome
 {
@@ -56,7 +56,7 @@ public static class CompileService
         if (!string.IsNullOrEmpty(baseDir))
         {
             cands.Add(Path.Combine(baseDir, "CompileHost.exe"));
-            // 主程序输出目录：<repo>/projects/CS2-Tools/AssetCompilerWpf/bin/<cfg|/x64/<cfg>/net10.0-windows
+            // 主程序输出目录：<repo>/projects/CS2-Tools/AssetCompiler/bin/<cfg|/x64/<cfg>/net10.0-windows
             // CompileHost 输出：<repo>/projects/CS2-Tools/CompileHost/bin/<cfg|/x64/<cfg>/net10.0-windows
             // 注意 Platforms=x64 会在 bin 下多插一段 x64，两种布局都要探。
             var dir = new DirectoryInfo(baseDir);

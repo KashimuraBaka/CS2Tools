@@ -13,11 +13,11 @@
 //
 // 对外接口：Load（游戏目录 → assettypes_common.txt → tier0 原生链解析）。
 // ============================================================================
-using AssetCompilerWpf.Models;
+using AssetCompiler.Models;
 using SDK.Tier0;
 using System.Text.RegularExpressions;
 
-namespace AssetCompilerWpf.Services;
+namespace AssetCompiler.Services;
 
 public sealed class ConfigLoadResult
 {
