@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>VmatLib</RootNamespace>
+    <AssemblyName>VmatLib</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- t24：KV 读写改走本仓 SDK 的 tier0 原生链（LoadKV3FromKV3OrKV1 / SaveKV3AsKV1Text），
+         原 ValveKeyValue / Microsoft.Extensions.Logging.Abstractions 两个 NuGet 依赖移除
+         （本仓纪律：不引三方包，KV 一律用引擎自己的函数） -->
+    <ProjectReference Include="..\SDK\SDK.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 着色器出厂模板（EmbeddedResource，冻结勿改） -->
+    <EmbeddedResource Include="Templates\*.vmat" />
+  </ItemGroup>
+
+</Project>

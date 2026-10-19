@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- SDK DLL 调用层：Windows-only（tier0 / resourcecompiler 均只出 win64） -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>SDK</AssemblyName>
+    <RootNamespace>SDK</RootNamespace>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <RollForward>LatestMajor</RollForward>
+    <!-- 只编本工程的源码；CompileHost 是独立 Exe 工程（CS2-Tools\CompileHost，ProjectReference 引用本库） -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <!-- EnableDefaultCompileItems=false 会连带关掉 ImplicitUsings 的 GlobalUsings；
+       共享 helper NativeStringFunctionInvoker.cs 自身未写 using System.IO，靠全局 using 提供。 -->
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.IO" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Runtime.InteropServices" />
+    <Using Include="System.Text" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Native\*.cs" />
+    <Compile Include="Data\*.cs" />
+    <Compile Include="Tier0\*.cs" />
+    <Compile Include="ResourceCompiler\*.cs" />
+  </ItemGroup>
+
+  <!-- 签名表（gamedata，t24 改 JSON 数据维护）：输出目录一份（免重编译）+ 内嵌一份（保底） -->
+  <ItemGroup>
+    <Content Include="signatures.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <EmbeddedResource Include="signatures.json" />
+  </ItemGroup>
+
+</Project>

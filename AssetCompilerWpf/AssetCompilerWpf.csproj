@@ -1,0 +1,71 @@
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>AssetCompilerWpf</AssemblyName>
+    <RootNamespace>AssetCompilerWpf</RootNamespace>
+    <!-- WPF 必须关闭 globalization-invariant 模式（t15 修复，勿改回 true）：
+         WPF 文本排版链路 TextFormatterImp -> SimpleRun -> FontFaceLayoutInfo.ComputeTypographyAvailabilities
+         -> MS.Internal.FontCache.MajorLanguages 需要真实 CultureInfo；invariant 模式下该静态构造器抛
+         CultureNotFoundException（Only the invariant culture is supported in globalization-invariant mode），
+         GUI 启动即以 0xE0434352 未处理异常退出，且每个文本元素抛一次。
+         该配置项只适用于控制台工程（例如 InvokerSmokeTest / CompileHost）。 -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <RollForward>LatestMajor</RollForward>
+    <!-- 关闭默认 **/*.cs glob：否则会把子工程 obj 下 SDK 生成的 AssemblyInfo.cs 一并编入，
+         导致 TargetFramework/AssemblyVersion 等特性重复（CS0579）。 -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <!-- EnableDefaultCompileItems=false 会连带关掉 ImplicitUsings 生成的 GlobalUsings，用显式 Using 补回。 -->
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.IO" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Text" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="*.cs" />                    <!-- 入口：App / MainWindow -->
+    <Compile Include="Models\*.cs" />             <!-- t22：数据模型 -->
+    <Compile Include="Services\*.cs" />           <!-- t22：KV3 加载 / 注册表 / 编译执行 -->
+  </ItemGroup>
+
+  <!-- t18：DLL 调用层抽到独立 SDK 工程；UI 只面对 SDK 的托管 API，不再直接 P/Invoke -->
+  <ItemGroup>
+    <ProjectReference Include="..\SDK\SDK.csproj" />
+  </ItemGroup>
+
+
+  <!-- ===== CompileHost 进程外 worker 的定位（t16 修复，t18 更新路径）=====
+         CompileHost 已迁到 ..\CompileHost\（CS2-Tools 下的独立 Exe 工程）；
+         修法两道互为兜底：
+          (1) ProjectReference 保证构建顺序（先建 CompileHost 再建主程序）；
+          (2) Build 后把 CompileHost 的可执行产物复制进主程序输出目录。
+         另外 CompileService.ResolveHostExe() 运行时还会按候选路径再探一次。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\CompileHost\CompileHost.csproj">
+      <!-- 不需要把 CompileHost 的程序集引用进来（类型不共用），只要构建顺序与产物 -->
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="CopyCompileHostOutputs" AfterTargets="Build">
+    <ItemGroup>
+      <CompileHostOutput Include="$(MSBuildProjectDirectory)\..\CompileHost\bin\**\$(Configuration)\net10.0-windows\CompileHost.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CompileHostOutput)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" ContinueOnError="true" />
+    <Message Importance="normal" Text="[CopyCompileHostOutputs] @(CompileHostOutput->Count()) file(s) -> $(OutDir)" Condition="@(CompileHostOutput->Count()) &gt; 0" />
+  </Target>
+
+</Project>

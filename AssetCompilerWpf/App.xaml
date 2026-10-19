@@ -1,0 +1,17 @@
+<Application
+    x:Class="AssetCompilerWpf.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    StartupUri="MainWindow.xaml"
+    ThemeMode="System">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- t17：Fluent 主题不覆盖 DataGrid，此处补齐 DataGrid 一族与画刷/尺寸令牌。
+                     本字典**不**定义 Button/TextBox/CheckBox/TabControl 等 Fluent 已覆盖控件的隐式样式，
+                     否则会重演"局部隐式样式顶掉主题默认样式"的故障。 -->
+                <ResourceDictionary Source="Styles\Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

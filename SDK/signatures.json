@@ -1,0 +1,34 @@
+{
+  "_doc": "SDK 签名表（gamedata）—— CS2Fixes gamedata/cs2fixes.jsonc 范式。 t24 按用户指示由 C# 代码（Signatures.cs 内的记录）改为 JSON 数据维护。 每条签名 = 名称 + 模块 + windows 字节模式（? 为通配符）+ 如何重新找到它。 唯一性实测（2026-10-19，两个模块全量扫描）：ArenaCtor 1 处 @0x1EAA400； GenerateResourceFile 1 处 @0x188B90；AssetConfig_Init 1 处 @0x187EA0。 注意：SymTabPoolInit 的函数体在 resourcecompiler.dll 里被内联展开成 10 份， 只共享 29 字节序言（随后在 E8 rel32 与多处 RIP 相对位移上分叉，512 字节内 111 字节不同）， 纯字节模式无法区分 ⇒ 它不走模式匹配：改用 ArenaCtor 签名（唯一）定位， 提取其 poolInitCallOffset 处的 E8 rel32 解算被调地址（实测 = 0xC84F0，与参考实现一致）。 维护方式：编辑本文件后，若从程序输出目录加载则重启即可（免重编译）； 内嵌资源副本（SDK.dll 内）需要重新生成。模块路径 bin/ 下的相对路径相对于游戏 bin 目录的上一级（<game>）。",
+  "modules": {
+    "tier0": "bin/win64/tier0.dll",
+    "resourcecompiler": "bin/win64/resourcecompiler.dll"
+  },
+  "signatures": [
+    {
+      "name": "ArenaCtor",
+      "module": "resourcecompiler",
+      "windows": "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 48 89 11 48 8B FA 48 8B F1 33 D2 48 83 C1 08 45 33 C9 45 33 C0 FF 15 ? ? ? ?",
+      "poolInitCallOffset": 248,
+      "howToRefind": "CKV3Arena 内层构造器（t20/t21 从真实调用方 LoadAssetTypesCommonTxt 反编译出的两级构造器之内层）。判据：函数体前段是一整串 mov [rsi+0x10xx],rdi（把 0 写进 arena+4168..4312）；后段写 +4320=32 / +4384=0x7FFFFFFE / +4388=1 / +88=253；再往下从 +4168 起向下建 253 节点空闲链。失效时：搜字符串 CKV3Arena::Root 找 Root 的调用方；或直接搜写 arena+88=253(0xFD) 的 C7 86 58 00 00 00 FD 00 00 00。"
+    },
+    {
+      "name": "GenerateResourceFile",
+      "module": "resourcecompiler",
+      "windows": "4C 89 44 24 18 48 89 54 24 10 48 89 4C 24 08 55 53 56 57 41 54 41 55 41 56 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ?",
+      "howToRefind": "CResourceCompilerSystem::GenerateResourceFile。模式起点是四个参数落栈序列（mov [rsp+18],r8 / mov [rsp+10],rdx / mov [rsp+8],rcx / push rbp…）。失效时：CreateInterface(ResourceCompilerSystem001) 拿系统对象读 vtable，或搜字符串 GenerateResourceFile。"
+    },
+    {
+      "name": "AssetConfig_Init",
+      "module": "resourcecompiler",
+      "windows": "40 53 48 83 EC 50 83 79 38 00 48 8B D9 0F 85 ? ? ? ? 48 83 3D ? ? ? ? 00 74 07 33 C9 E8 ? ? ? ?",
+      "howToRefind": "AssetConfig_Init。push rbx; sub rsp,50h; cmp [rcx+38],0（幂等检查）。失效时：搜字符串 assettypes_common.txt 找 LoadAssetTypesCommonTxt，它调本函数。"
+    },
+    {
+      "name": "LoadAssetTypesCommonTxt",
+      "module": "resourcecompiler",
+      "windows": "40 55 53 57 41 56 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 8B D9 33 D2 48 8D 4D 90",
+      "howToRefind": "参考实现（不直接调，仅作定位佐证）。push rbp; push rbx; push rdi; push r14; lea rbp,[rsp-..]; mov eax,..; call ..; sub rsp,rax。失效时：搜字符串 assettypes_common.txt 的 xref 即得（t21 就是这么找到它的）。"
+    }
+  ]
+}

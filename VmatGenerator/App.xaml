@@ -1,0 +1,22 @@
+<Application x:Class="VmatGenerator.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:VmatGenerator"
+             StartupUri="MainWindow.xaml"
+             ThemeMode="System">
+    <!--
+        ThemeMode="System" 启用 .NET 10 WPF 内置的 Fluent 主题：
+        它同时提供控件样式（Menu / Button / TextBox / TreeView / CheckBox 等）
+        与主题资源（LayerFillColor*、TextFillColor*、DividerStrokeColor* 等），
+        并跟随 Windows 的浅色 / 深色设置自动切换。
+
+        主题资源来自 .NET 10 Desktop Runtime 内置的 PresentationFramework.Fluent
+        程序集，无需任何第三方 Fluent UI 库，也无需手动合并资源字典。
+    -->
+    <Application.Resources>
+        <!--
+             主题资源全部来自 PresentationFramework.Fluent，由 ThemeMode="System" 自动合并；
+             旧的参数行模板字典已随参数编辑器一起删除，这里不再需要本地资源。
+        -->
+    </Application.Resources>
+</Application>

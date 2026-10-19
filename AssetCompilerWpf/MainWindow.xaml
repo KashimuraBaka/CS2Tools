@@ -1,0 +1,259 @@
+
+<Window x:Class="AssetCompilerWpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CS2 Asset Compiler (tier0 KeyValues + resourcecompiler.dll)"
+        Height="860" Width="1280"
+        MinHeight="700" MinWidth="1180"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+        Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+
+    <Window.Resources>
+        <!-- t17 修复：原隐式 <Style TargetType="Button">（只设 Padding/Margin、无 BasedOn）
+             会整体顶掉 Fluent 主题的 Button 默认样式，使按钮回落经典 Aero 浅色。
+             现改为 BasedOn 主题默认样式（{StaticResource {x:Type Button}} 解析到主题字典里的默认 Button 样式），
+             只在其上补间距/最小宽度，主题外观完整保留。 -->
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Margin" Value="4" />
+            <Setter Property="MinWidth" Value="84" />
+        </Style>
+
+        <!-- 主操作按钮：主题默认 + 加粗（不另起炉灶） -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinWidth" Value="104" />
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Margin" Value="4" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <!-- 次级文字（未加载 / 计数 / 说明） -->
+        <Style x:Key="SecondaryTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <!-- 8px 间距体系：窗口 12px 外边距，分组 8px 纵向间隔 -->
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />   <!-- ① 配置栏（卡片） -->
+            <RowDefinition Height="*" />     <!-- ②③④ Tab 面板 -->
+            <RowDefinition Height="Auto" />  <!-- GridSplitter -->
+            <RowDefinition Height="220" />   <!-- ⑤ 日志面板（卡片） -->
+        </Grid.RowDefinitions>
+
+        <!-- ============ ① 配置加载（卡片式） ============ -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" MinWidth="220" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" MinWidth="150" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="游戏目录:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox Grid.Column="1" x:Name="TxtGameDir" VerticalAlignment="Center"
+                         ToolTip="游戏目录（唯一输入）：bin\assettypes_common.txt、bin\win64\*.dll 均相对于它派生" />
+                <Button Grid.Column="2" Content="浏览..." Click="OnBrowseConfig" />
+                <Button Grid.Column="3" Content="加载配置" Click="OnLoadConfig"
+                        Style="{StaticResource PrimaryButtonStyle}" />
+                <Button Grid.Column="4" Content="读注册表" Click="OnReadRegistry" />
+                <TextBlock Grid.Column="5" x:Name="TxtConfigStatus" VerticalAlignment="Center" Margin="12,0,0,0"
+                           Text="未加载" Style="{StaticResource SecondaryTextStyle}" />
+            </Grid>
+        </Border>
+
+        <!-- ============ ②③④ 三个 Tab 面板 ============ -->
+        <TabControl Grid.Row="1" Margin="0" Background="Transparent">
+
+            <!-- ② 资产类型表 -->
+            <TabItem x:Name="TabTypes" Header="资产类型">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 工具栏：搜索 / 过滤 / 计数 -->
+                    <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="10,8" Margin="0,0,0,8">
+                        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="搜索:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox x:Name="TxtSearch" Width="240" VerticalAlignment="Center"
+                                     TextChanged="OnFilterChanged"
+                                     ToolTip="按名称 / _class / m_Ext / m_FriendlyName / m_CompilerIdentifier 过滤" />
+                            <CheckBox x:Name="ChkOnlyCompiler" Content="仅有编译器" Margin="16,0,0,0"
+                                      VerticalAlignment="Center"
+                                      Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
+                            <TextBlock x:Name="TxtCounts" VerticalAlignment="Center" Margin="16,0,0,0"
+                                       FontWeight="SemiBold" />
+                        </WrapPanel>
+                    </Border>
+
+                    <DataGrid Grid.Row="1" x:Name="GridTypes" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionChanged="OnTypeSelected">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="220" />
+                            <DataGridTextColumn Header="_class" Binding="{Binding Class}" Width="190" />
+                            <DataGridTextColumn Header="m_Ext" Binding="{Binding Ext}" Width="110" />
+                            <DataGridTextColumn Header="m_FriendlyName" Binding="{Binding FriendlyName}" Width="180" />
+                            <DataGridTextColumn Header="m_CompilerIdentifier" Binding="{Binding CompilerDisplay}" Width="200" />
+                            <DataGridTextColumn Header="m_Blocks" Binding="{Binding BlockCount}" Width="90" />
+                            <DataGridTextColumn Header="m_HideForRetailMods" Binding="{Binding HideForRetailMods}" Width="150" />
+                            <DataGridTextColumn Header="字段数" Binding="{Binding FieldCount}" Width="80" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- subassettypes 独立分区 -->
+            <TabItem Header="subassettypes (8)">
+                <Grid Margin="0,8,0,0">
+                    <DataGrid x:Name="GridSubTypes" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="260" />
+                            <DataGridTextColumn Header="开关字段" Binding="{Binding Flags}" Width="*" MinWidth="260" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ③ 编译器解析面板 -->
+            <TabItem Header="编译器解析">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 「标识符 + 解析」行：输入框吃满宽度，主按钮右聚 -->
+                    <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="10,8" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" MinWidth="220" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="标识符:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox Grid.Column="1" x:Name="TxtIdentifier" VerticalAlignment="Center"
+                                     ToolTip="m_CompilerIdentifier，如 CompileVData / CompileModel / CompileNmGraph" />
+                            <Button Grid.Column="2" Content="解析" Click="OnResolve"
+                                    Style="{StaticResource PrimaryButtonStyle}" />
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Grid.Row="1" x:Name="TxtResolveSummary" FontWeight="SemiBold"
+                               Margin="0,0,0,8" TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="2" x:Name="TxtResolveDetail" TextWrapping="Wrap"
+                               Margin="0,0,0,8" Style="{StaticResource SecondaryTextStyle}" />
+
+                    <DataGrid Grid.Row="3" x:Name="GridRegistry" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="idx" Binding="{Binding Index}" Width="60" />
+                            <DataGridTextColumn Header="identifier" Binding="{Binding Identifier}" Width="260" />
+                            <DataGridTextColumn Header="factory RVA" Binding="{Binding FactoryRvaText}" Width="130" />
+                            <DataGridTextColumn Header="singleton RVA" Binding="{Binding SingletonRvaText}" Width="150" />
+                            <DataGridTextColumn Header="factory VA" Binding="{Binding FactoryVaText}" Width="160" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ④ 编译面板 -->
+            <TabItem Header="编译">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 源文件行 -->
+                    <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="10,8" Margin="0,0,0,8">
+                        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="源文件 (vmdl/vdata/vnmgraph ...):" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <Button Content="添加文件..." Click="OnAddSources" />
+                            <Button Content="清空列表" Click="OnClearSources" />
+                            <TextBlock x:Name="TxtSourceCount" VerticalAlignment="Center" Margin="16,0,0,0"
+                                       Style="{StaticResource SecondaryTextStyle}" />
+                        </WrapPanel>
+                    </Border>
+
+                    <ListBox Grid.Row="1" x:Name="ListSources" Height="110" Margin="0,0,0,8" />
+
+                    <!-- 操作行：两个 Tier 按钮左聚（主按钮突出），mod dir 右聚 -->
+                    <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Padding="10,8" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" MinWidth="260" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="Tier1: DLL 路径" Click="OnCompileTier1"
+                                    Style="{StaticResource PrimaryButtonStyle}" />
+                            <Button Grid.Column="1" Content="Tier2: 官方 exe" Click="OnCompileTier2" />
+                            <TextBlock Grid.Column="3" Text="mod dir:" VerticalAlignment="Center" Margin="16,0,8,0" />
+                            <TextBox Grid.Column="4" x:Name="TxtModDir" VerticalAlignment="Center"
+                                     ToolTip="Tier2 用的 mod 目录（-game 指向它；其下应有 gameinfo.gi；默认 &lt;游戏目录&gt;\csgo）" />
+                        </Grid>
+                    </Border>
+
+                    <DataGrid Grid.Row="3" x:Name="GridCompile" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="源文件" Binding="{Binding Source}" Width="280" />
+                            <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="90" />
+                            <DataGridTextColumn Header="层级" Binding="{Binding Tier}" Width="70" />
+                            <DataGridTextColumn Header="耗时(ms)" Binding="{Binding ElapsedMs}" Width="90" />
+                            <DataGridTextColumn Header="输出路径" Binding="{Binding OutputPath}" Width="240" />
+                            <DataGridTextColumn Header="大小" Binding="{Binding OutputSize}" Width="90" />
+                            <DataGridTextColumn Header="mtime" Binding="{Binding OutputMtime}" Width="150" />
+                            <DataGridTextColumn Header="说明" Binding="{Binding Detail}" Width="*" MinWidth="200" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- ============ ⑤ 日志面板（卡片式） ============ -->
+        <!-- 分割线用主题画刷，随深/浅切换；可拖拽调整日志高度 -->
+        <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch"
+                      Background="{DynamicResource DividerStrokeColorDefaultBrush}"
+                      ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                      Focusable="True" Cursor="SizeNS" />
+
+        <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- 标题行：标题左、清空按钮右（DockPanel 对齐） -->
+                <DockPanel Grid.Row="0" LastChildFill="False" Margin="12,8,8,4">
+                    <Button DockPanel.Dock="Right" Content="清空" Click="OnClearLog" Margin="0" />
+                    <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                               Text="日志（模块基址 / RVA / 委托 / 返回值 / 错误串）"
+                               FontWeight="SemiBold" />
+                </DockPanel>
+
+                <ScrollViewer Grid.Row="1" Margin="8,0,8,8"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto">
+                    <TextBox x:Name="TxtLog" IsReadOnly="True" BorderThickness="0"
+                             Background="Transparent"
+                             Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                             TextWrapping="Wrap"
+                             FontFamily="Consolas" FontSize="12" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
