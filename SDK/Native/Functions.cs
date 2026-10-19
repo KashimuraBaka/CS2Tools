@@ -111,7 +111,13 @@ public static class Functions
 
     public static bool IsInitialized { get; private set; }
 
-    // 解析出的关键 RVA（供 RegistryService / CompilerInterop 复用）
+    // 解析出的关键 RVA（签名解析的统一产物）
+    public static int RvaLoadKv3Arena { get; private set; }
+    public static int RvaSaveKv3AsJson { get; private set; }
+    public static int RvaLoadKv3FromKv3OrKv1 { get; private set; }
+    public static int RvaSaveKv3AsKv1Text { get; private set; }
+    public static int RvaLoadKv3FromJson { get; private set; }
+    public static int RvaCUtlBufferCtor { get; private set; }
     public static int RvaGenerateResourceFile { get; private set; }
     public static int RvaAssetConfigInit { get; private set; }
     public static int RvaArenaCtor { get; private set; }
@@ -144,14 +150,26 @@ public static class Functions
         catch (Exception ex) { throw new FunctionResolveException("EarlyInit_Tier0", "调用抛出: " + ex.Message); }
 
         // ---- 2) 导出函数：GetProcAddress ----
-        LoadKv3Arena = BindExport<LoadKv3ArenaFn>(tier0, "?LoadKV3@@YA_NPEAVCKV3Arena@@PEAVCUtlString@@PEAVCUtlBuffer@@AEBUKV3ID_t@@PEBDI@Z");
-        SaveKv3AsJson = BindExport<SaveKv3AsJsonFn>(tier0, "?SaveKV3AsJSON@@YA_NPEBVKeyValues3@@PEAVCUtlString@@1@Z");
+        RvaLoadKv3Arena = tier0.FindUniqueSignature(Signatures.Get("LoadKv3Arena").Name, Signatures.Get("LoadKv3Arena").WindowsPattern);
+        LoadKv3Arena = tier0.ResolveDelegateAtRva<LoadKv3ArenaFn>(RvaLoadKv3Arena);
+        Log("LoadKv3Arena", "tier0", RvaLoadKv3Arena);
+        RvaSaveKv3AsJson = tier0.FindUniqueSignature(Signatures.Get("SaveKv3AsJson").Name, Signatures.Get("SaveKv3AsJson").WindowsPattern);
+        SaveKv3AsJson = tier0.ResolveDelegateAtRva<SaveKv3AsJsonFn>(RvaSaveKv3AsJson);
+        Log("SaveKv3AsJson", "tier0", RvaSaveKv3AsJson);
         LoadKv3TextNoHeader = BindExport<LoadKv3TextNoHeaderFn>(tier0, "?LoadKV3Text_NoHeader@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEBDAEBUKV3ID_t@@2I@Z");
-        CUtlBufferCtor = BindExport<CUtlBufferCtorFn>(tier0, "??0CUtlBuffer@@QEAA@HHW4BufferFlags_t@0@@Z");
+        RvaCUtlBufferCtor = tier0.FindUniqueSignature(Signatures.Get("CUtlBufferCtor").Name, Signatures.Get("CUtlBufferCtor").WindowsPattern);
+        CUtlBufferCtor = tier0.ResolveDelegateAtRva<CUtlBufferCtorFn>(RvaCUtlBufferCtor);
+        Log("CUtlBufferCtor", "tier0", RvaCUtlBufferCtor);
         CreateInterface = BindExport<CreateInterfaceFn>(rc, "CreateInterface");
-        LoadKv3FromKv3OrKv1 = BindExport<LoadKv3FromKv3OrKv1Fn>(tier0, "?LoadKV3FromKV3OrKV1@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEAVCUtlBuffer@@AEBUKV3ID_t@@PEBDI@Z");
-        SaveKv3AsKv1Text = BindExport<SaveKv3AsKv1TextFn>(tier0, "?SaveKV3AsKV1Text@@YA_NPEBVKeyValues3@@PEAVCUtlString@@PEAVCUtlBuffer@@W4KV1TextEscapeBehavior_t@@@Z");
-        LoadKv3FromJson = BindExport<LoadKv3FromJsonFn>(tier0, "?LoadKV3FromJSON@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEBD2I@Z");
+        RvaLoadKv3FromKv3OrKv1 = tier0.FindUniqueSignature(Signatures.Get("LoadKv3FromKv3OrKv1").Name, Signatures.Get("LoadKv3FromKv3OrKv1").WindowsPattern);
+        LoadKv3FromKv3OrKv1 = tier0.ResolveDelegateAtRva<LoadKv3FromKv3OrKv1Fn>(RvaLoadKv3FromKv3OrKv1);
+        Log("LoadKv3FromKv3OrKv1", "tier0", RvaLoadKv3FromKv3OrKv1);
+        RvaSaveKv3AsKv1Text = tier0.FindUniqueSignature(Signatures.Get("SaveKv3AsKv1Text").Name, Signatures.Get("SaveKv3AsKv1Text").WindowsPattern);
+        SaveKv3AsKv1Text = tier0.ResolveDelegateAtRva<SaveKv3AsKv1TextFn>(RvaSaveKv3AsKv1Text);
+        Log("SaveKv3AsKv1Text", "tier0", RvaSaveKv3AsKv1Text);
+        RvaLoadKv3FromJson = tier0.FindUniqueSignature(Signatures.Get("LoadKv3FromJson").Name, Signatures.Get("LoadKv3FromJson").WindowsPattern);
+        LoadKv3FromJson = tier0.ResolveDelegateAtRva<LoadKv3FromJsonFn>(RvaLoadKv3FromJson);
+        Log("LoadKv3FromJson", "tier0", RvaLoadKv3FromJson);
         LoadKv3FromKv1File = BindExport<LoadKv3FromKv1FileFn>(tier0, "?LoadKV3FromKV1File@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEBD2W4KV1TextEscapeBehavior_t@@I@Z");
 
         // ---- 3) 内部函数：命名签名（要求唯一命中）----

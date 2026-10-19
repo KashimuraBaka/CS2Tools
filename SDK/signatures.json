@@ -1,5 +1,5 @@
 {
-  "_doc": "SDK 签名表（gamedata）—— CS2Fixes gamedata/cs2fixes.jsonc 范式。 t24 按用户指示由 C# 代码（Signatures.cs 内的记录）改为 JSON 数据维护。 每条签名 = 名称 + 模块 + windows 字节模式（? 为通配符）+ 如何重新找到它。 唯一性实测（2026-10-19，两个模块全量扫描）：ArenaCtor 1 处 @0x1EAA400； GenerateResourceFile 1 处 @0x188B90；AssetConfig_Init 1 处 @0x187EA0。 注意：SymTabPoolInit 的函数体在 resourcecompiler.dll 里被内联展开成 10 份， 只共享 29 字节序言（随后在 E8 rel32 与多处 RIP 相对位移上分叉，512 字节内 111 字节不同）， 纯字节模式无法区分 ⇒ 它不走模式匹配：改用 ArenaCtor 签名（唯一）定位， 提取其 poolInitCallOffset 处的 E8 rel32 解算被调地址（实测 = 0xC84F0，与参考实现一致）。 维护方式：编辑本文件后，若从程序输出目录加载则重启即可（免重编译）； 内嵌资源副本（SDK.dll 内）需要重新生成。模块路径 bin/ 下的相对路径相对于游戏 bin 目录的上一级（<game>）。",
+  "_doc": "SDK 签名表（gamedata）—— CS2Fixes gamedata/cs2fixes.jsonc 范式。 t24 按用户指示由 C# 代码（Signatures.cs 内的记录）改为 JSON 数据维护。 每条签名 = 名称 + 模块 + windows 字节模式（? 为通配符）+ 如何重新找到它。 唯一性实测（2026-10-19，两个模块全量扫描）：ArenaCtor 1 处 @0x1EAA400； GenerateResourceFile 1 处 @0x188B90；AssetConfig_Init 1 处 @0x187EA0。 注意：SymTabPoolInit 的函数体在 resourcecompiler.dll 里被内联展开成 10 份， 只共享 29 字节序言（随后在 E8 rel32 与多处 RIP 相对位移上分叉，512 字节内 111 字节不同）， 纯字节模式无法区分 ⇒ 它不走模式匹配：改用 ArenaCtor 签名（唯一）定位， 提取其 poolInitCallOffset 处的 E8 rel32 解算被调地址（实测 = 0xC84F0，与参考实现一致）。 维护方式：编辑本文件后，若从程序输出目录加载则重启即可（免重编译）； 内嵌资源副本（SDK.dll 内）需要重新生成。模块路径 bin/ 下的相对路径相对于游戏 bin 目录的上一级（<game>）。 t28：KeyValues 六件套（LoadKv3Arena/SaveKv3AsJson/LoadKv3FromKv3OrKv1/SaveKv3AsKv1Text/LoadKv3FromJson/CUtlBufferCtor）按用户指示从导出名绑定改为签名解析（模块 tier0），与 CS2Fixes 范式一致——全部函数同一解析路径。 t28 修正：KV 六件套的签名曾按“手工解析导出表得到的 RVA”提取，与运行时 GetProcAddress 实际返回不一致（如 LoadKv3Arena 0xAEB60 vs 0x124910）导致 AV；已按运行时真实地址重新提取，并在此记录：导出表 RVA 手工解析不可靠，一切以 GetProcAddress 为准。",
   "modules": {
     "tier0": "bin/win64/tier0.dll",
     "resourcecompiler": "bin/win64/resourcecompiler.dll"
@@ -29,6 +29,42 @@
       "module": "resourcecompiler",
       "windows": "40 55 53 57 41 56 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 8B D9 33 D2 48 8D 4D 90",
       "howToRefind": "参考实现（不直接调，仅作定位佐证）。push rbp; push rbx; push rdi; push r14; lea rbp,[rsp-..]; mov eax,..; call ..; sub rsp,rax。失效时：搜字符串 assettypes_common.txt 的 xref 即得（t21 就是这么找到它的）。"
+    },
+    {
+      "name": "LoadKv3Arena",
+      "module": "tier0",
+      "windows": "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 30 49 8B D9 49 8B F8 48 8B F2 E8 ? ? ? ? 48 8B C8 4C 8B CB 4C 8B C7 48 8B",
+      "howToRefind": "CKV3Arena 版 LoadKV3（KV3 -> KeyValues3 树，原生链第一环）。判据：mov [rsp+8],rbx; mov [rsp+0x10],rsi; push rdi; sub rsp,30h; mov r11,rcx; mov r8,rdi; mov rsi,rdx; call。失效时：GetProcAddress 取 ?LoadKV3@@YA_NPEAVCKV3Arena@@PEAVCUtlString@@PEAVCUtlBuffer@@AEBUKV3ID_t@@PEBDI@Z（注意：导出表 RVA 手工解析易错位，以运行时 GetProcAddress 为准）。"
+    },
+    {
+      "name": "SaveKv3AsJson",
+      "module": "tier0",
+      "windows": "48 8B C4 48 89 58 08 57 48 83 EC 60 83 60 F0 FC 33 FF 48 89 78 B8 49 8B D8 48 89 78 C0 4C 8D 44 24 20 48 89 78 C8 48 89",
+      "howToRefind": "SaveKV3AsJSON（树 -> JSON，桥接产出点）。判据：mov rax,rsp; mov [rax+8],rbx; push rdi; sub rsp,60h; and dword [rax-0x10],0xFFFFFFFC; xor edi,edi; mov [rax-0x48],rdi。失效时：GetProcAddress 取 ?SaveKV3AsJSON@@YA_NPEBVKeyValues3@@PEAVCUtlString@@1@Z。"
+    },
+    {
+      "name": "LoadKv3FromKv3OrKv1",
+      "module": "tier0",
+      "windows": "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 50 41 F7 40 04 FF FF FF 7F 49 8B E9 ? ? ? ? 8B FA 48 8B F1",
+      "howToRefind": "LoadKV3FromKV3OrKV1（按内容自动判别 KV3/KV1）。判据：mov [rsp+8],rbx; mov [rsp+0x10],rbp; mov [rsp+0x18],rsi; push rdi; sub rsp,50h; test dword [r8+4],0x7FFFFFFF; mov r13,rcx; test edx,edx。失效时：GetProcAddress 取 ?LoadKV3FromKV3OrKV1@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEAVCUtlBuffer@@AEBUKV3ID_t@@PEBDI@Z。"
+    },
+    {
+      "name": "SaveKv3AsKv1Text",
+      "module": "tier0",
+      "windows": "48 83 EC 38 33 C0 89 44 24 28 48 89 44 24 20 E8 ? ? ? ? 48 83 C4 38 C3 CC CC CC CC CC CC CC 48 89 5C 24 08 57 48 83",
+      "howToRefind": "SaveKV3AsKV1Text（树 -> KV1，VmatGenerator 写 .vmat；输出落第三参数 CUtlBuffer）。判据：sub rsp,38h; xor eax,eax; mov [rsp+28h],eax; mov [rsp+20h],rax; call; add rsp,38h; ret + int3 填充。40 B 模式含后续函数序言才唯一。失效时：GetProcAddress 取 ?SaveKV3AsKV1Text@@YA_NPEBVKeyValues3@@PEAVCUtlString@@PEAVCUtlBuffer@@W4KV1TextEscapeBehavior_t@@@Z。"
+    },
+    {
+      "name": "LoadKv3FromJson",
+      "module": "tier0",
+      "windows": "48 8B C4 48 89 50 10 48 89 48 08 55 53 48 8D A8 48 FD FF FF 48 81 EC A8 03 00 00 48 89 70 18 49 8B D8 48 89 78 E8 4C 89",
+      "howToRefind": "LoadKV3FromJSON（JSON -> 树，VmatGenerator 写出上半段）。判据：mov rax,rsp; mov [rax+0x10],rdx; mov [rax+8],rcx; push rbp; push rbx; lea rbp,[rsp-0x2B8]; sub rsp,0x3A8; mov [rax+0x18],rsi; mov r11,rdx。失效时：GetProcAddress 取 ?LoadKV3FromJSON@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEBD2I@Z。"
+    },
+    {
+      "name": "CUtlBufferCtor",
+      "module": "tier0",
+      "windows": "40 55 56 41 57 48 83 EC 20 33 ED 4C 89 74 24 50 4D 63 F0 45 0F B6 F9 48 89 29 48 8B F1 48 89 69 08 8B C5 45 85 C0 7E 5D",
+      "howToRefind": "CUtlBuffer::CUtlBuffer(int,int,BufferFlags_t)（所有 KV 链的缓冲构造；原生 CUtlBuffer > 40 B，ctor 写 +0x28/+0x30 函数指针，缓冲至少 256 B）。判据：push rbp; push rsi; push r15; sub rsp,20h; xor ebp,ebp; mov [rsp+50h],r14; movsxd r14,r8d; movzx r15d,r9b; mov [rcx],rbp; mov rsi,rcx; mov [rcx+8],rbp。失效时：GetProcAddress 取 ??0CUtlBuffer@@QEAA@HHW4BufferFlags_t@0@@Z。"
     }
   ]
 }
