@@ -36,5 +36,5 @@ public sealed class Kv3Value(Kv3Kind kind, string text, List<Kv3Value> items)
     public bool IsTable => Kind == Kv3Kind.Table;
     public bool IsArray => Kind == Kv3Kind.Array;
 
-    public override string ToString() => Kind == Kv3Kind.Table ? "{" + Count + "}" : (Kind == Kv3Kind.Array ? "[" + Count + "]" : Text);
+    public override string ToString() => Kind == Kv3Kind.Table ? $"{{{Count}}}" : (Kind == Kv3Kind.Array ? $"[{Count}]" : Text);
 }

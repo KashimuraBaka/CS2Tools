@@ -118,6 +118,7 @@ public static class Functions
     public static int RvaSaveKv3AsKv1Text { get; private set; }
     public static int RvaLoadKv3FromJson { get; private set; }
     public static int RvaCUtlBufferCtor { get; private set; }
+    public static int RvaLoadKv3TextNoHeader { get; private set; }
     public static int RvaGenerateResourceFile { get; private set; }
     public static int RvaAssetConfigInit { get; private set; }
     public static int RvaArenaCtor { get; private set; }
@@ -156,7 +157,9 @@ public static class Functions
         RvaSaveKv3AsJson = tier0.FindUniqueSignature(Signatures.Get("SaveKv3AsJson").Name, Signatures.Get("SaveKv3AsJson").WindowsPattern);
         SaveKv3AsJson = tier0.ResolveDelegateAtRva<SaveKv3AsJsonFn>(RvaSaveKv3AsJson);
         Log("SaveKv3AsJson", "tier0", RvaSaveKv3AsJson);
-        LoadKv3TextNoHeader = BindExport<LoadKv3TextNoHeaderFn>(tier0, "?LoadKV3Text_NoHeader@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEBDAEBUKV3ID_t@@2I@Z");
+        RvaLoadKv3TextNoHeader = tier0.FindUniqueSignature(Signatures.Get("LoadKv3TextNoHeader").Name, Signatures.Get("LoadKv3TextNoHeader").WindowsPattern);
+        LoadKv3TextNoHeader = tier0.ResolveDelegateAtRva<LoadKv3TextNoHeaderFn>(RvaLoadKv3TextNoHeader);
+        Log("LoadKv3TextNoHeader", "tier0", RvaLoadKv3TextNoHeader);
         RvaCUtlBufferCtor = tier0.FindUniqueSignature(Signatures.Get("CUtlBufferCtor").Name, Signatures.Get("CUtlBufferCtor").WindowsPattern);
         CUtlBufferCtor = tier0.ResolveDelegateAtRva<CUtlBufferCtorFn>(RvaCUtlBufferCtor);
         Log("CUtlBufferCtor", "tier0", RvaCUtlBufferCtor);

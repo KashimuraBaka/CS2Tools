@@ -1,5 +1,5 @@
 {
-  "_doc": "SDK 签名表（gamedata）—— CS2Fixes gamedata/cs2fixes.jsonc 范式。 t24 按用户指示由 C# 代码（Signatures.cs 内的记录）改为 JSON 数据维护。 每条签名 = 名称 + 模块 + windows 字节模式（? 为通配符）+ 如何重新找到它。 唯一性实测（2026-10-19，两个模块全量扫描）：ArenaCtor 1 处 @0x1EAA400； GenerateResourceFile 1 处 @0x188B90；AssetConfig_Init 1 处 @0x187EA0。 注意：SymTabPoolInit 的函数体在 resourcecompiler.dll 里被内联展开成 10 份， 只共享 29 字节序言（随后在 E8 rel32 与多处 RIP 相对位移上分叉，512 字节内 111 字节不同）， 纯字节模式无法区分 ⇒ 它不走模式匹配：改用 ArenaCtor 签名（唯一）定位， 提取其 poolInitCallOffset 处的 E8 rel32 解算被调地址（实测 = 0xC84F0，与参考实现一致）。 维护方式：编辑本文件后，若从程序输出目录加载则重启即可（免重编译）； 内嵌资源副本（SDK.dll 内）需要重新生成。模块路径 bin/ 下的相对路径相对于游戏 bin 目录的上一级（<game>）。 t28：KeyValues 六件套（LoadKv3Arena/SaveKv3AsJson/LoadKv3FromKv3OrKv1/SaveKv3AsKv1Text/LoadKv3FromJson/CUtlBufferCtor）按用户指示从导出名绑定改为签名解析（模块 tier0），与 CS2Fixes 范式一致——全部函数同一解析路径。 t28 修正：KV 六件套的签名曾按“手工解析导出表得到的 RVA”提取，与运行时 GetProcAddress 实际返回不一致（如 LoadKv3Arena 0xAEB60 vs 0x124910）导致 AV；已按运行时真实地址重新提取，并在此记录：导出表 RVA 手工解析不可靠，一切以 GetProcAddress 为准。",
+  "_doc": "SDK 签名表（gamedata）—— CS2Fixes gamedata/cs2fixes.jsonc 范式。 t24 按用户指示由 C# 代码（Signatures.cs 内的记录）改为 JSON 数据维护。 每条签名 = 名称 + 模块 + windows 字节模式（? 为通配符）+ 如何重新找到它。 唯一性实测（2026-10-19，两个模块全量扫描）：ArenaCtor 1 处 @0x1EAA400； GenerateResourceFile 1 处 @0x188B90；AssetConfig_Init 1 处 @0x187EA0。 注意：SymTabPoolInit 的函数体在 resourcecompiler.dll 里被内联展开成 10 份， 只共享 29 字节序言（随后在 E8 rel32 与多处 RIP 相对位移上分叉，512 字节内 111 字节不同）， 纯字节模式无法区分 ⇒ 它不走模式匹配：改用 ArenaCtor 签名（唯一）定位， 提取其 poolInitCallOffset 处的 E8 rel32 解算被调地址（实测 = 0xC84F0，与参考实现一致）。 维护方式：编辑本文件后，若从程序输出目录加载则重启即可（免重编译）； 内嵌资源副本（SDK.dll 内）需要重新生成。模块路径 bin/ 下的相对路径相对于游戏 bin 目录的上一级（<game>）。 t28：KeyValues 六件套（LoadKv3Arena/SaveKv3AsJson/LoadKv3FromKv3OrKv1/SaveKv3AsKv1Text/LoadKv3FromJson/CUtlBufferCtor）按用户指示从导出名绑定改为签名解析（模块 tier0），与 CS2Fixes 范式一致——全部函数同一解析路径。 t28 修正：KV 六件套的签名曾按“手工解析导出表得到的 RVA”提取，与运行时 GetProcAddress 实际返回不一致（如 LoadKv3Arena 0xAEB60 vs 0x124910）导致 AV；已按运行时真实地址重新提取，并在此记录：导出表 RVA 手工解析不可靠，一切以 GetProcAddress 为准。 t28b：LoadKV3TextNoHeader（第七条）同样由导出名改签名——回答「为何 ProbeNative 还在用 ResolveDelegateByName」：那是 t16 探针的遗留，现探针也改走 SDK 的签名解析。",
   "modules": {
     "tier0": "bin/win64/tier0.dll",
     "resourcecompiler": "bin/win64/resourcecompiler.dll"
@@ -65,6 +65,12 @@
       "module": "tier0",
       "windows": "40 55 56 41 57 48 83 EC 20 33 ED 4C 89 74 24 50 4D 63 F0 45 0F B6 F9 48 89 29 48 8B F1 48 89 69 08 8B C5 45 85 C0 7E 5D",
       "howToRefind": "CUtlBuffer::CUtlBuffer(int,int,BufferFlags_t)（所有 KV 链的缓冲构造；原生 CUtlBuffer > 40 B，ctor 写 +0x28/+0x30 函数指针，缓冲至少 256 B）。判据：push rbp; push rsi; push r15; sub rsp,20h; xor ebp,ebp; mov [rsp+50h],r14; movsxd r14,r8d; movzx r15d,r9b; mov [rcx],rbp; mov rsi,rcx; mov [rcx+8],rbp。失效时：GetProcAddress 取 ??0CUtlBuffer@@QEAA@HHW4BufferFlags_t@0@@Z。"
+    },
+    {
+      "name": "LoadKv3TextNoHeader",
+      "module": "tier0",
+      "windows": "48 83 EC 38 48 8D 05 0D 3E 24 00 48 89 44 24 28 4C 89 4C 24 20 4C 8B 4C 24 60 E8 ? ? ? ? 48 83 C4 38 C3 CC CC CC CC",
+      "howToRefind": "LoadKV3Text_NoHeader（无头 KV3 文本 -> 树；本仓探针用于校验 KV3 头并取引擎错误串）。判据：sub rsp,38h; lea rax,[rip+0x243E0D]（fmt 表）; mov [rsp+28h],rax; mov [rsp+20h],r9; mov r9,[rsp+60h]; call（转 sub_1800D3D50）; add rsp,38h; ret。函数体是小转发壳，40 B 即唯一。失效时：GetProcAddress 取 ?LoadKV3Text_NoHeader@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEBDAEBUKV3ID_t@@2I@Z。"
     }
   ]
 }

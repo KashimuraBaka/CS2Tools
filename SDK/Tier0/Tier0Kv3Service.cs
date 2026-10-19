@@ -5,7 +5,7 @@
 // 背景（t16）：用户指示移除三方库 ValveKeyValues，改调 tier0.dll 自带 KeyValues/KV3 API。
 //
 // ■ 已经 tier0.dll 跑通的部分（IDA 反编译 + 探针实证）：
-//   * 入口（mangled，经 NativeStringFunctionInvoker 的 ResolveDelegateByName 调用）：
+//   * 入口（t28b 起经 SDK.Native.Functions 的签名解析取得，见 signatures.json 的 LoadKv3TextNoHeader）：
 //       ?LoadKV3Text_NoHeader@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEBDAEBUKV3ID_t@@2I@Z
 //       ?LoadKV3@@YA_NPEAVCKV3Arena@@PEAVCUtlString@@PEAVCUtlBuffer@@AEBUKV3ID_t@@PEBDI@Z
 //       ?SaveKV3AsJSON@@YA_NPEBVKeyValues3@@PEAVCUtlString@@1@Z
@@ -52,9 +52,6 @@ public static class Tier0Kv3Service
     /// <summary>tier0.dll 默认路径（CS2 win64）。</summary>
     public const string DefaultTier0Relative = @"bin\win64\tier0.dll";
 
-    // ?LoadKV3Text_NoHeader(KeyValues3*, CUtlString*, const char*, KV3ID_t const&, const char*, unsigned int)
-    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    private delegate bool LoadKV3TextNoHeader(IntPtr kv, IntPtr err, IntPtr text, IntPtr fmt, IntPtr pathId, uint flags);
 
     /// <summary>
     /// 真实调用 tier0.dll 的 KV3 文本入口，把引擎自己的判定/错误串带回来。
@@ -69,16 +66,18 @@ public static class Tier0Kv3Service
         }
         res = res with { DllLoaded = true };
 
-        NativeStringFunctionInvoker.ModuleScope? keep = null;
         try
         {
-            keep = NativeStringFunctionInvoker.LoadWithDllImport(tier0Path);
-            var fn = keep.ResolveDelegateByName<LoadKV3TextNoHeader>("?LoadKV3Text_NoHeader@@YA_NPEAVKeyValues3@@PEAVCUtlString@@PEBDAEBUKV3ID_t@@2I@Z");
-            if (fn is null)
+            // t28b：探针不再自建模块/按导出名解析（旧 helper 路径），改走 SDK 的签名解析产物。
+            // tier0Path = <game>\bin\win64\tier0.dll ⇒ 游戏目录取其三级父目录。
+            var gameBinDir = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(tier0Path)));
+            if (string.IsNullOrEmpty(gameBinDir))
             {
-                res = res with { Detail = "入口未解析（导出名不匹配当前构建）" };
+                res = res with { Detail = "无法从 tier0 路径推导游戏目录: " + tier0Path };
                 return res;
             }
+            if (!Native.Functions.IsInitialized) Native.Functions.Initialize(gameBinDir);
+            var fn = Native.Functions.LoadKv3TextNoHeader;
             res = res with { EntryResolved = true };
 
             // bit0=1 ⇒ 对象自述「无 arena」；探针只走到解析器首行判定，不会建树
@@ -116,7 +115,6 @@ public static class Tier0Kv3Service
         {
             return res with { Detail = ex.GetType().Name + ": " + ex.Message };
         }
-        finally { keep?.Dispose(); }
     }
 
 
