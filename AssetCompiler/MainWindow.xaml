@@ -171,6 +171,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
@@ -206,7 +207,18 @@
                         </Grid>
                     </Border>
 
-                    <DataGrid Grid.Row="3" x:Name="GridCompile" AutoGenerateColumns="False" IsReadOnly="True">
+                    <!-- 输出目录行（t28k：可控编译输出路径，直写不移动） -->
+                    <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}" Padding="10,8" Margin="0,0,0,8">
+                        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="输出目录:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox x:Name="TxtOutputDir" Width="380" VerticalAlignment="Center" Margin="0,0,8,0"
+                                     ToolTip="编译产物（.vXXX_c）输出目录；留空 = 与源文件同目录。目标不可写时自动回退到程序自身目录。" />
+                            <Button Content="浏览..." Click="OnBrowseOutputDir" />
+                            <Button Content="清空" Click="OnClearOutputDir" Margin="4,0,0,0" />
+                        </WrapPanel>
+                    </Border>
+
+                    <DataGrid Grid.Row="4" x:Name="GridCompile" AutoGenerateColumns="False" IsReadOnly="True">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="源文件" Binding="{Binding Source}" Width="280" />
                             <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="90" />

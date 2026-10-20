@@ -181,6 +181,17 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>选择编译输出目录（t28k）。</summary>
+    private void OnBrowseOutputDir(object sender, RoutedEventArgs e)
+    {
+        var d = new OpenFolderDialog { Title = "选择编译输出目录" };
+        if (!string.IsNullOrWhiteSpace(TxtOutputDir.Text) && Directory.Exists(TxtOutputDir.Text))
+            d.InitialDirectory = TxtOutputDir.Text;
+        if (d.ShowDialog(this) == true) TxtOutputDir.Text = d.FolderName;
+    }
+
+    /// <summary>清空输出目录（留空 = 与源文件同目录）。</summary>
+    private void OnClearOutputDir(object sender, RoutedEventArgs e) => TxtOutputDir.Text = "";
     private void OnClearSources(object sender, RoutedEventArgs e)
     {
         Sources.Clear();
@@ -203,7 +214,8 @@ public partial class MainWindow : Window
         foreach (var s in Sources.ToList())
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var o = await Task.Run(() => CompileService.RunTier1(GameDir, s));
+            var outDir = TxtOutputDir.Text.Trim();
+            var o = await Task.Run(() => CompileService.RunTier1(GameDir, s, string.IsNullOrWhiteSpace(outDir) ? null : outDir));
             sw.Stop();
             results.Add(new CompileItemResult
             {

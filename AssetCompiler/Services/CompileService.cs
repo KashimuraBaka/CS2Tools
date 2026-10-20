@@ -31,6 +31,8 @@ public sealed class CompileOutcome
 
 public static class CompileService
 {
+    /// <summary>编译输出目录（空 = 与源文件同目录）。t28k 新增：可控输出路径，直写不移动。</summary>
+    public static string OutputDirectory { get; set; } = "";
     /// <summary>t12 重定位的新 RVA（游戏 10-17 更新后；旧锚点库 RVA 已禁用）。</summary>
     public const int RvaGenerateResourceFile = 0x188B90;
     public const int RvaAssetConfigInit = 0x187EA0;
@@ -48,7 +50,7 @@ public static class CompileService
     ///     作为可预期错误上报——应用不崩（t12 曾因子进程内直调整个 UI 陪葬）。
     /// </para>
     /// </summary>
-    public static CompileOutcome RunTier1(string gameBinDir, string sourceFile)
+    public static CompileOutcome RunTier1(string gameBinDir, string sourceFile, string? outputDir = null)
     {
         var logs = new List<string>();
         try
@@ -91,14 +93,23 @@ public static class CompileService
                 if (outBytes is null)
                     return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "KV3 二进制编译失败: " + compileErr, Logs = logs };
 
-                // 输出默认落源目录；Steam 库等只读位置回退到临时目录（CS2 安装目录通常不可写）
-                var outPath = sourceFile + "_c";
-                try { File.WriteAllBytes(outPath, outBytes); }
+                // t28k：输出路径可控——outputDir 参数 > OutputDirectory 属性 > 源目录；
+                // 一律直接 WriteAllBytes 落到目标路径，不做 File.Move。
+                var wantDir = string.IsNullOrWhiteSpace(outputDir) ? OutputDirectory : outputDir;
+                var outName = Path.GetFileName(sourceFile) + "_c";
+                var outPath = string.IsNullOrWhiteSpace(wantDir) ? sourceFile + "_c" : Path.Combine(wantDir, outName);
+                try
+                {
+                    var dir = Path.GetDirectoryName(outPath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    File.WriteAllBytes(outPath, outBytes);
+                }
                 catch (Exception ex)
                 {
-                    var fallback = Path.Combine(AppContext.BaseDirectory, Path.GetFileName(outPath));
+                    // 目标不可写（只读/无权限）时回退程序自身目录，仍不走 File.Move
+                    var fallback = Path.Combine(AppContext.BaseDirectory, outName);
                     File.WriteAllBytes(fallback, outBytes);
-                    logs.Add($"源目录不可写（{ex.GetType().Name}），回退: {fallback}");
+                    logs.Add($"输出目录不可写（{ex.GetType().Name}），回退: {fallback}");
                     outPath = fallback;
                 }
                 logs.Add($"KV3 binary compiled in-process: {outBytes.Length} B -> {outPath}");
