@@ -11,6 +11,8 @@
 //   fail-fast（不可 catch），在 UI 进程内直调会连 GUI 一起打死。本类只封装
 //   「RVA 常量 + 委托签名 + 子进程边界说明」，不提供进程内直调入口。
 // ============================================================================
+using System.Runtime.InteropServices;
+
 namespace SDK.ResourceCompiler;
 
 /// <summary>编译调用面的 RVA 常量（t12 重定位，游戏 10-17 更新后 t24 全部 +0x1C0）。</summary>

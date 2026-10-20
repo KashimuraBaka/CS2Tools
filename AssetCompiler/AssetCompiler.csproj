@@ -21,24 +21,19 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <RollForward>LatestMajor</RollForward>
-    <!-- 关闭默认 **/*.cs glob：否则会把子工程 obj 下 SDK 生成的 AssemblyInfo.cs 一并编入，
-         导致 TargetFramework/AssemblyVersion 等特性重复（CS0579）。 -->
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- t28o：不使用 EnableDefaultCompileItems——默认 glob 已排除 bin/obj，
+         AssemblyInfo 重复（CS0579）问题不存在；显式列举反而会漏编根目录新文件。 -->
   </PropertyGroup>
 
-  <!-- EnableDefaultCompileItems=false 会连带关掉 ImplicitUsings 生成的 GlobalUsings，用显式 Using 补回。 -->
+
+
+  <!-- 全局 using：本工程源码（MainWindow/Services/Models）不写 using System.IO 等，
+       靠这里提供；与 ImplicitUsings 默认集有重叠但合法（重复 global using 不报错）。 -->
   <ItemGroup>
-    <Using Include="System" />
     <Using Include="System.IO" />
+    <Using Include="System.Text" />
     <Using Include="System.Collections.Generic" />
     <Using Include="System.Linq" />
-    <Using Include="System.Text" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="*.cs" />                    <!-- 入口：App / MainWindow -->
-    <Compile Include="Models\*.cs" />             <!-- t22：数据模型 -->
-    <Compile Include="Services\*.cs" />           <!-- t22：KV3 加载 / 注册表 / 编译执行 -->
   </ItemGroup>
   <!-- t18：DLL 调用层抽到独立 SDK 工程；UI 只面对 SDK 的托管 API，不再直接 P/Invoke -->
   <ItemGroup>

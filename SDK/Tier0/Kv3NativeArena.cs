@@ -17,6 +17,8 @@
 //   * 地址解析集中到 Functions.Initialize，未命中即 fail-fast。
 // ============================================================================
 using SDK.Native;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace SDK.Tier0;
 
@@ -391,7 +393,7 @@ public static class Kv3NativeArena
         Functions.EnsureInitialized();
 
         // 当前 KV3 二进制格式版本（sub_1800BE340 白名单第 5 项，最新）
-        binaryFormatGuid ??= new byte[] { 0xE6, 0x09, 0xB1, 0x6E, 0x85, 0x6B, 0x83, 0x45, 0xA3, 0x12, 0x70, 0x3A, 0x6E, 0x04, 0x06, 0x8C };
+        binaryFormatGuid ??= [0xE6, 0x09, 0xB1, 0x6E, 0x85, 0x6B, 0x83, 0x45, 0xA3, 0x12, 0x70, 0x3A, 0x6E, 0x04, 0x06, 0x8C];
 
         nint kv = 0, err = 0, textPtr = 0, fmtName = 0, pathId = 0, bufMem = 0, fmtMem = 0, buf = 0, outBuf = 0, serErr = 0;
         try
@@ -430,10 +432,13 @@ public static class Kv3NativeArena
             // ---- 2) 二进制格式 fmt（输出 GUID）----
             var outFmtMem = Marshal.AllocHGlobal(24);
             for (int i = 0; i < 24; i++) Marshal.WriteByte(outFmtMem, i, 0);
-            var outFmt = new KV3ID_t { pName = (byte*)fmtName };
-            outFmt.Data1 = BitConverter.ToUInt32(binaryFormatGuid, 0);
-            outFmt.Data2 = BitConverter.ToUInt16(binaryFormatGuid, 4);
-            outFmt.Data3 = BitConverter.ToUInt16(binaryFormatGuid, 6);
+            var outFmt = new KV3ID_t
+            {
+                pName = (byte*)fmtName,
+                Data1 = BitConverter.ToUInt32(binaryFormatGuid, 0),
+                Data2 = BitConverter.ToUInt16(binaryFormatGuid, 4),
+                Data3 = BitConverter.ToUInt16(binaryFormatGuid, 6)
+            };
             for (int i = 0; i < 8; i++) outFmt.Data4[i] = binaryFormatGuid[8 + i];
             Marshal.StructureToPtr(outFmt, outFmtMem, false);
 
