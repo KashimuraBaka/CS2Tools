@@ -75,6 +75,11 @@ public static class CompileService
                 if (!srcText.TrimStart().StartsWith("<!--", StringComparison.Ordinal))
                     return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "不是 KV3 文本源（缺 kv3 头）：" + sourceFile, Logs = logs };
 
+                // t28j：按引擎资源编译链的口吻发消息（assetsystem 的 RecompileAsset 同款通道）
+                var rel = Path.GetRelativePath(gameBinDir, sourceFile).Replace(Path.DirectorySeparatorChar, '/');
+                SDK.Native.EngineLog.WriteRecompiling(rel);
+                logs.Add("engine-log: Recompiling resource asset: '" + rel + "'");
+
                 byte[]? outBytes = null; string? compileErr = null;
                 var th = new System.Threading.Thread(() =>
                 {
@@ -97,6 +102,8 @@ public static class CompileService
                     outPath = fallback;
                 }
                 logs.Add($"KV3 binary compiled in-process: {outBytes.Length} B -> {outPath}");
+                SDK.Native.EngineLog.Write("Reloading Resource [1/1]: " + rel, SDK.Native.LogSeverity.Message);
+                logs.Add("engine-log: Reloading Resource [1/1]: " + rel);
                 return new CompileOutcome { Ok = true, Stage = "tier1", Detail = $"KV3 二进制编译成功：{outBytes.Length} B（VK3 魔数 + 格式 GUID），输出 {outPath}", ExitCode = 0, Logs = logs };
             }
 

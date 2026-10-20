@@ -198,6 +198,9 @@ public static class Functions
         SymTabPoolInit = rc.ResolveDelegateAtRva<SymTabPoolInitFn>(RvaSymTabPoolInit);
         Log("SymTabPoolInit(via ArenaCtor+" + Signatures.ArenaCtor_PoolInitCallOffset.ToString("X") + ")", "resourcecompiler", RvaSymTabPoolInit);
 
+        // t28j：日志通道（引擎 LoggingSystem 出口）
+        EngineLog.Bind(tier0);
+
         IsInitialized = true;
     }
 
