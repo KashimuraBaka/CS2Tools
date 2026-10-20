@@ -7,7 +7,7 @@
 //     调用引擎服务时 0xC0000005 —— 编译器缺引擎服务图（文件系统/KV3/资产配置）；
 //   * GenerateResourceFile 内部按扩展名取 assettype 需要 this+88 的配置对象，同样 AV。
 //
-// ⇒ 编译调用**必须**放在隔离子进程（SDK.CompileHost）里执行：原生 AV 在 .NET 是
+// ⇒ 编译调用必须由 EngineServiceGuard 前置守卫保护（t28c）：原生 AV 在 .NET 是
 //   fail-fast（不可 catch），在 UI 进程内直调会连 GUI 一起打死。本类只封装
 //   「RVA 常量 + 委托签名 + 子进程边界说明」，不提供进程内直调入口。
 // ============================================================================
@@ -50,7 +50,7 @@ public static class CompilerInterop
     public const string IsolationRationale =
         "resourcecompiler.dll 的编译路径需要引擎宿主提供服务图（文件系统 / KV3 解析 / 资产配置）；" +
         "裸进程下调 AssetConfig_Init / GenerateResourceFile 会 0xC0000005，而 .NET 对 " +
-        "AccessViolationException 是 fail-fast（不可 catch）⇒ 必须在隔离子进程（SDK.CompileHost）中执行。";
+        "AccessViolationException 是 fail-fast（不可 catch）⇒ 进程内调用前必须先过 EngineServiceGuard 预检（t28c）。";
 
     /// <summary>GenerateResourceFile 的委托签名（仅在子进程内、且引擎服务图就绪时才可安全调用）。</summary>
     /// <remarks>

@@ -11,7 +11,6 @@ Counter-Strike 2 资源管线工具集（.NET 10 / WPF）。所有 KeyValues（K
 | [VmatLib](VmatLib/) | .vmat 材质生成核心库：贴图语义槽位、后缀规则、着色器模板（11 个出厂模板） |
 | [VmatGenerator](VmatGenerator/) | .vmat 生成器 GUI（三步向导 + 拖拽导入） |
 | [AssetCompiler](AssetCompiler/) | 资产编译 GUI：读 assettypes_common.txt（tier0 原生链）、编译 vmdl/vdata/vnmgraph |
-| [CompileHost](CompileHost/) | 编译宿主进程（与 GUI 隔离，防引擎崩溃波及 UI） |
 
 ## 构建
 

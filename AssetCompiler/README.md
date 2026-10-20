@@ -23,7 +23,7 @@ projects\CS2-Tools\AssetCompiler\        ← 根目录仅入口与工程文件
 ├── Models\Models.cs             UI 行模型（AssetTypeRow / RegistryEntryRow / ResolveResult…）
 ├── Services\                    Kv3ConfigService（KV3 加载：游戏目录 → assettypes_common.txt → tier0 解析）
 │                                RegistryService（SDK 薄封装）
-│                                CompileService（编译执行，隔离子进程，worker 在 ..\CompileHost\）
+│                                CompileService（编译执行，进程内 + EngineServiceGuard 前置守卫）
 └── Styles\Styles.xaml           t17 Fluent 主题补齐（DataGrid 一族 + 画刷/尺寸令牌）
 ```
 

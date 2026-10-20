@@ -35,7 +35,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         TxtGameDir.Text = DefaultGameDir;   // 唯一输入：游戏目录；配置/DLL/exe 均由它派生
         TxtModDir.Text = Path.Combine(DefaultGameDir, "csgo");   // Tier2 的 -game mod 目录（默认 <游戏目录>\csgo）
-        // t28c：Tier1 改进程内——不再起 CompileHost 子进程（用户禁止额外进程方式）。
+        // t28c/d：Tier1 全进程内——不起任何子进程（用户禁止额外进程方式；CompileHost 子工程已移除）。
         // 进程内链路：签名解析 -> CreateInterface+注册表只读验证 -> 引擎服务图预检（缺则明确报错，绝不崩）。
         Log("Tier1: 进程内模式（签名解析 + 只读注册表验证 + 引擎服务图预检）");
     }

@@ -10,7 +10,7 @@
 //
 // 与旧 NativeStringFunctionInvoker 的关系：本类是纯基础设施，不含任何业务
 // （anchors / 编译注册表 / KV3 协议都不在这里）。旧 helper 仍被 RegistryService、
-// CompileHost、InvokerSmokeTest 使用，逐步迁移后退役。
+// InvokerSmokeTest 使用，逐步迁移后退役。
 // ============================================================================
 namespace SDK.Native;
 

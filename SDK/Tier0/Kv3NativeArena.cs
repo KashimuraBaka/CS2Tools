@@ -312,7 +312,7 @@ public static class Kv3NativeArena
             // 两个输出参数都读，取有内容者（实测 JSON 落在第 3 参数）
             var ja = ReadCUtlString(outA);
             var jb = ReadCUtlString(outB);
-            var json = ja.Length > 0 && ja.TrimStart().StartsWith("{", StringComparison.Ordinal) ? ja : jb;
+            var json = ja.Length > 0 && ja.TrimStart().StartsWith('{') ? ja : jb;
             if (json.Length == 0) return new NativeKv3Result { Ok = false, Detail = "JSON 为空（引擎未产出）" };
             return new NativeKv3Result { Ok = true, Json = json, Detail = "kv1->json, len=" + json.Length };
         }

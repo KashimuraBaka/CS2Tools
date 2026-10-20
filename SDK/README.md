@@ -31,7 +31,6 @@ projects\CS2-Tools\SDK\
 ├── Tier0\Tier0Kv3Service.cs              tier0 原生探针 + 自包含 KV3 读取器
 ├── ResourceCompiler\RegistryService.cs   注册表只读解析 + 标识符解析
 ├── ResourceCompiler\CompilerInterop.cs   编译调用面（RVA 常量 + 委托签名 + 隔离边界说明）
-├── CompileHost\                          隔离子进程编译 worker（独立 Exe，ProjectReference 本库）
 └── README.md
 ```
 
@@ -41,7 +40,7 @@ projects\CS2-Tools\SDK\
 |---|---|---|
 | 配置加载 | `SDK.Tier0.Tier0Kv3Service.ProbeNative(tier0Path, text)` / `.Parse(text)` | KV3 → `Dictionary<string, Kv3Value>`；ProbeNative 真实调用 tier0.dll 并把引擎错误串回显 |
 | 编译器解析 | `SDK.ResourceCompiler.RegistryService.Read(dllPath)` / `.Resolve(snap, id)` | 标识符 → 条目 / 工厂 RVA / 单例 RVA；表头 RVA 运行时自校验 |
-| 编译调用 | `SDK.ResourceCompiler.CompilerInterop` + `SDK.CompileHost` | **只在隔离子进程内执行**（见 §4） |
+| 编译调用 | `SDK.ResourceCompiler.CompilerInterop` | **进程内执行，但必须先过 `EngineServiceGuard` 预检**（见 §4） |
 
 UI 层只面对上述托管 API；`AssetCompiler` 里的 `RegistryService` / `Kv3ConfigService`
 已退化为**薄封装**（适配行模型 + 保留友好错误语义）。
@@ -103,7 +102,7 @@ UI 层只面对上述托管 API；`AssetCompiler` 里的 `RegistryService` / `Kv
   t12 已实证在裸进程安全。
 * **必须进程外**：`AssetConfig_Init` / `GenerateResourceFile`。t12 实证二者在裸进程 `0xC0000005`
   （编译器缺引擎服务图），而 .NET 对 `AccessViolationException` 是 fail-fast（不可 catch）
-  ⇒ 在 UI 进程内直调会连 GUI 一起崩。⇒ 一律走 `SDK.CompileHost` 子进程。
+  ⇒ 在 UI 进程内直调会连 GUI 一起崩。⇒ 一律先过 `SDK.Native.EngineServiceGuard` 预检，缺服务槽则不调用（t28c；原 CompileHost 子进程方案已废弃，t28d 移除）。
 * **进程内不做** RTTI 全链读取：t13 首版按 COL/TD 偏移直读导致 AV 打穿 GUI，已移除。
 
 ## 5. 结构定义参考来源

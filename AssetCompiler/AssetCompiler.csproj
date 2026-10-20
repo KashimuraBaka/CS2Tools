@@ -17,7 +17,7 @@
          -> MS.Internal.FontCache.MajorLanguages 需要真实 CultureInfo；invariant 模式下该静态构造器抛
          CultureNotFoundException（Only the invariant culture is supported in globalization-invariant mode），
          GUI 启动即以 0xE0434352 未处理异常退出，且每个文本元素抛一次。
-         该配置项只适用于控制台工程（例如 InvokerSmokeTest / CompileHost）。 -->
+         该配置项只适用于控制台工程（例如 InvokerSmokeTest）。 -->
     <InvariantGlobalization>false</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <RollForward>LatestMajor</RollForward>
@@ -46,26 +46,5 @@
     <ProjectReference Include="..\SDK\SDK.csproj" />
   </ItemGroup>
 
-
-  <!-- ===== CompileHost 进程外 worker 的定位（t16 修复，t18 更新路径）=====
-         CompileHost 已迁到 ..\CompileHost\（CS2-Tools 下的独立 Exe 工程）；
-         修法两道互为兜底：
-          (1) ProjectReference 保证构建顺序（先建 CompileHost 再建主程序）；
-          (2) Build 后把 CompileHost 的可执行产物复制进主程序输出目录。
-         另外 CompileService.ResolveHostExe() 运行时还会按候选路径再探一次。 -->
-  <ItemGroup>
-    <ProjectReference Include="..\CompileHost\CompileHost.csproj">
-      <!-- 不需要把 CompileHost 的程序集引用进来（类型不共用），只要构建顺序与产物 -->
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
-  </ItemGroup>
-
-  <Target Name="CopyCompileHostOutputs" AfterTargets="Build">
-    <ItemGroup>
-      <CompileHostOutput Include="$(MSBuildProjectDirectory)\..\CompileHost\bin\**\$(Configuration)\net10.0-windows\CompileHost.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(CompileHostOutput)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" ContinueOnError="true" />
-    <Message Importance="normal" Text="[CopyCompileHostOutputs] @(CompileHostOutput->Count()) file(s) -> $(OutDir)" Condition="@(CompileHostOutput->Count()) &gt; 0" />
-  </Target>
 
 </Project>

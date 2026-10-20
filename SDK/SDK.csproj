@@ -13,7 +13,7 @@
     <RootNamespace>SDK</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
     <RollForward>LatestMajor</RollForward>
-    <!-- 只编本工程的源码；CompileHost 是独立 Exe 工程（CS2-Tools\CompileHost，ProjectReference 引用本库） -->
+    <!-- 只编本工程的源码（t28d：原 CompileHost 独立 Exe 工程已移除） -->
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 

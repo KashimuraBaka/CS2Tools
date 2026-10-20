@@ -4,7 +4,7 @@
 //
 // 历史（t12 实证）：AssetConfig_Init / GenerateResourceFile 在裸进程 0xC0000005——
 //   编译路径依赖引擎服务图，而 .NET 对 AccessViolationException fail-fast 不可 catch，
-//   故曾用 CompileHost 子进程隔离（崩了只是退出码）。
+//   故曾用 CompileHost 子进程隔离（崩了只是退出码；t28d 该子工程已移除，Tier1 全进程内）。
 //
 // 现状（t28c，用户禁止额外进程方式）：Tier1 改为进程内，靠**前置守卫**避免进崩代码：
 //   EngineServiceGuard.Check 先读引擎服务全局槽（qword_183B60158 等，由引擎主程序注册），
@@ -38,50 +38,6 @@ public static class CompileService
     public const int RvaAssetConfigInit = 0x187EA0;
     public const int RvaResolver = 0x1884C0;
     public const int RvaConfigLoader = 0x1F1B3E0;
-
-    public static string HostExe { get; set; } = "";
-
-    /// <summary>
-    /// 解析 CompileHost.exe 的真实路径（t16 修复）。
-    /// 候选顺序：
-    ///   1) 显式指定的 HostExe（若非空且存在）；
-    ///   2) 主程序自己的输出目录（csproj 的 CopyCompileHostOutputs 目标会把它复制过来）；
-    ///   3) CompileHost 子工程的输出目录，按当前配置 / Release / Debug 顺序探。
-    /// 这样即便没跑构建后复制（例如手工 dotnet run、或只建了主工程），Tier1 仍可达。
-    /// </summary>
-    public static string ResolveHostExe(string? explicitPath = null)
-    {
-        var cands = new List<string>();
-        if (!string.IsNullOrWhiteSpace(explicitPath)) cands.Add(explicitPath);
-        if (!string.IsNullOrWhiteSpace(HostExe)) cands.Add(HostExe);
-
-        string? baseDir = AppContext.BaseDirectory;
-        if (!string.IsNullOrEmpty(baseDir))
-        {
-            cands.Add(Path.Combine(baseDir, "CompileHost.exe"));
-            // 主程序输出目录：<repo>/projects/CS2-Tools/AssetCompiler/bin/<cfg|/x64/<cfg>/net10.0-windows
-            // CompileHost 输出：<repo>/projects/CS2-Tools/CompileHost/bin/<cfg|/x64/<cfg>/net10.0-windows
-            // 注意 Platforms=x64 会在 bin 下多插一段 x64，两种布局都要探。
-            var dir = new DirectoryInfo(baseDir);
-            for (int up = 0; up < 6 && dir is not null; up++, dir = dir.Parent)
-            {
-                if (dir is null) break;
-                var projDir = Path.Combine(dir.FullName, "CompileHost");
-                if (!Directory.Exists(projDir)) continue;
-                foreach (var cfg in new[] { "Release", "Debug" })
-                {
-                    cands.Add(Path.Combine(projDir, "bin", cfg, "net10.0-windows", "CompileHost.exe"));
-                    cands.Add(Path.Combine(projDir, "bin", "x64", cfg, "net10.0-windows", "CompileHost.exe"));
-                }
-                break;
-            }
-        }
-        foreach (var c in cands)
-        {
-            if (!string.IsNullOrEmpty(c) && File.Exists(c)) return c;
-        }
-        return HostExe ?? "";
-    }
 
     /// <summary>
     /// 对单个源文件跑 Tier1（**进程内**；t28c 起不再起子进程——用户明确禁止额外进程方式）。
