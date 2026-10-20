@@ -101,7 +101,7 @@ public static class ResourceCompilerService
         byte[]? outBytes = null; string? compileErr = null;
         var th = new System.Threading.Thread(() =>
         {
-            try { var r = Kv3NativeArena.CompileKv3Binary(srcText); if (r.Ok) outBytes = Convert.FromBase64String(r.Json); else compileErr = r.Detail; }
+            try { var r = Kv3NativeArena.CompileKv3Binary(srcText); if (r.Ok) outBytes = Convert.FromBase64String(r.Json); else compileErr = r.Detail; }   // 内部经 NativeApi.KeyValues3_LoadKV3FromKV3OrKV1 / KeyValues3_SaveKV3AsKV1Text
             catch (Exception ex) { compileErr = ex.GetType().Name + ": " + ex.Message; }
         }, 32 * 1024 * 1024);
         th.Start(); th.Join();

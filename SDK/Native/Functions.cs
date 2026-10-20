@@ -91,6 +91,15 @@ public static class Functions
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     public delegate nint CreateInterfaceFn(nint pName, nint pReturnCode);
 
+    // CResourceCompilerSystem::GenerateResourceFile（RVA 0x188B90，签名面；未实测调用）
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    public delegate bool GenerateResourceFileFn(nint system, nint pszSourceFile, nint pContext, nint pReserved);
+
+    // AssetConfig_Init（RVA 0x187EA0，虚表方法，需引擎创建的对象）
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    public delegate nint AssetConfigInitFn(nint pAssetConfig);
+
+
     // ==================== 解析结果字段 ====================
 
     public static LoadKv3ArenaFn LoadKv3Arena { get; private set; } = null!;
@@ -101,6 +110,8 @@ public static class Functions
     public static EarlyInitTier0Fn EarlyInitTier0 { get; private set; } = null!;
     public static SymTabPoolInitFn SymTabPoolInit { get; private set; } = null!;
     public static CreateInterfaceFn CreateInterface { get; private set; } = null!;
+    public static GenerateResourceFileFn GenerateResourceFile { get; private set; } = null!;
+    public static AssetConfigInitFn AssetConfigInit { get; private set; } = null!;
     public static LoadKv3FromKv3OrKv1Fn LoadKv3FromKv3OrKv1 { get; private set; } = null!;
     public static SaveKv3AsKv1TextFn SaveKv3AsKv1Text { get; private set; } = null!;
     public static LoadKv3FromJsonFn LoadKv3FromJson { get; private set; } = null!;
@@ -185,9 +196,11 @@ public static class Functions
 
         RvaGenerateResourceFile = rc.FindUniqueSignature(Signatures.Get("GenerateResourceFile").Name, Signatures.Get("GenerateResourceFile").WindowsPattern);
         Log("GenerateResourceFile", "resourcecompiler", RvaGenerateResourceFile);
+        GenerateResourceFile = rc.ResolveDelegateAtRva<GenerateResourceFileFn>(RvaGenerateResourceFile);
 
         RvaAssetConfigInit = rc.FindUniqueSignature(Signatures.Get("AssetConfig_Init").Name, Signatures.Get("AssetConfig_Init").WindowsPattern);
         Log("AssetConfig_Init", "resourcecompiler", RvaAssetConfigInit);
+        AssetConfigInit = rc.ResolveDelegateAtRva<AssetConfigInitFn>(RvaAssetConfigInit);
 
         // ---- 4) 多副本函数：定位调用方 + 提取 E8 rel32 ----
         // PoolInit 函数体在 rc 里被多处内联展开：28 字节序言模式实测命中 10 处，
