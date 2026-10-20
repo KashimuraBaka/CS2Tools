@@ -40,11 +40,8 @@
     <Compile Include="Models\*.cs" />             <!-- t22：数据模型 -->
     <Compile Include="Services\*.cs" />           <!-- t22：KV3 加载 / 注册表 / 编译执行 -->
   </ItemGroup>
-
   <!-- t18：DLL 调用层抽到独立 SDK 工程；UI 只面对 SDK 的托管 API，不再直接 P/Invoke -->
   <ItemGroup>
     <ProjectReference Include="..\SDK\SDK.csproj" />
   </ItemGroup>
-
-
 </Project>

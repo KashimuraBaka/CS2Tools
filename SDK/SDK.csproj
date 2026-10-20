@@ -33,6 +33,8 @@
     <Compile Include="Data\*.cs" />
     <Compile Include="Tier0\*.cs" />
     <Compile Include="ResourceCompiler\*.cs" />
+    <!-- t28m：根目录的逐函数静态调用面（名 = C++ 限定名） -->
+    <Compile Include="NativeApi.cs" />
   </ItemGroup>
 
   <!-- 签名表（gamedata，t24 改 JSON 数据维护）：输出目录一份（免重编译）+ 内嵌一份（保底） -->

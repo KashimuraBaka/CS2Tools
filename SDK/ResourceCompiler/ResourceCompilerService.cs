@@ -95,6 +95,7 @@ public static class ResourceCompilerService
         // 引擎口吻消息（assetsystem 的 RecompileAsset 同款通道）
         var rel = Path.GetRelativePath(gameBinDir, src).Replace(Path.DirectorySeparatorChar, '/');
         EngineLog.WriteRecompiling(rel);
+        NativeApi.LoggingSystem_IsChannelEnabled(0, (int)LogSeverity.Message);   // t28m：签名面自举引用（防根目录文件漏编）
         logs.Add("engine-log: Recompiling resource asset: '" + rel + "'");
 
         // 二进制序列化器递归深、栈帧大（~0x400 B/层），1 MB 级图形必须大栈线程
