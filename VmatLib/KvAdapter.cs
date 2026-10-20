@@ -10,9 +10,9 @@
 // 语义与原版一致：KV1 文档名即顶层键（"Layer0"）；KV3 匿名顶层提升唯一
 // Layer0 子节点为根；数组扁平化为数字键子节点；注释按引擎行为丢弃。
 // ============================================================================
+using SDK.Tier0;
 using System.Text;
 using System.Text.Json;
-using SDK.Tier0;
 
 namespace VmatLib;
 

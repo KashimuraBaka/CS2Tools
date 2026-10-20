@@ -125,8 +125,8 @@ public partial class MainWindow : Window
             RegistryService.ValidateTable(Reg);
             GridRegistry.ItemsSource = Reg.Entries;
 
-            Log($"模块基址 = 0x{Reg.ModuleBase.ToString("X")}；注册表表头 RVA = {Reg.TableRvaText}；条目 = {Reg.Entries.Count}");
-            Log($"CreateInterface(ResourceCompilerSystem001) -> 0x{Reg.SystemObject.ToString("X")}；RTTI 名称 = {Reg.RttiName}（校验 {(Reg.RttiOk ? "通过" : "未通过")}）");
+            Log($"模块基址 = 0x{Reg.ModuleBase:X}；注册表表头 RVA = {Reg.TableRvaText}；条目 = {Reg.Entries.Count}");
+            Log($"CreateInterface(ResourceCompilerSystem001) -> 0x{Reg.SystemObject:X}；RTTI 名称 = {Reg.RttiName}（校验 {(Reg.RttiOk ? "通过" : "未通过")}）");
             Log("注意：工厂 RVA 全部从表里实时读出（实测非均匀平移，禁硬编码）。");
             TxtResolveSummary.Text = $"注册表 {Reg.Entries.Count} 条已就绪（表头 RVA {Reg.TableRvaText}，自校验通过）";
             TxtResolveDetail.Text = "";
@@ -204,7 +204,7 @@ public partial class MainWindow : Window
         foreach (var s in Sources.ToList())
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var o = await System.Threading.Tasks.Task.Run(() => CompileService.RunTier1(GameDir, s));
+            var o = await Task.Run(() => CompileService.RunTier1(GameDir));
             sw.Stop();
             results.Add(new CompileItemResult
             {

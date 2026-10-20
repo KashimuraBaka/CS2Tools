@@ -4,11 +4,11 @@
 //
 // 演进：
 //   t11  ValveKeyValue（NuGet 单数包 0.72.0.534）——已移除；
-//   t16  tier0.dll 原生 KV3 路径（?LoadKV3Text_NoHeader 探针 + 自包含读取器）；
+//   t16  tier0.dll 原生 KV3 路径（探针 + 自包含读取器，两者均已于 t24/t28e 移除）；
 //   t18  **DLL 调用层已抽到独立 SDK 工程 projects\SDK\**：
 //         本类现在只是 UI 与 SDK 之间的**薄封装**——真正的 P/Invoke、arena/Root+120
 //         布局、CUtlString/CUtlBuffer 结构、错误串回显都在
-//         SDK.Tier0.Tier0Kv3Service / SDK.Tier0.Kv3Value 里。
+//         SDK.Tier0.Kv3NativeArena / SDK.Tier0.Kv3Value 里。
 //         UI 层不直接出现 P/Invoke。
 //
 // 对外接口：Load（游戏目录 → assettypes_common.txt → tier0 原生链解析）。
@@ -33,7 +33,6 @@ public sealed class ConfigLoadResult
     public string WarningTitle { get; init; } = "";
 
     /// <summary>tier0 原生探针结果（t16）：真实 DLL 调用的判定/错误串。</summary>
-    public Tier0ProbeResult? NativeProbe { get; init; }
 }
 
 public static partial class Kv3ConfigService
@@ -50,14 +49,6 @@ public static partial class Kv3ConfigService
             throw new FileNotFoundException("配置文件不存在: " + configPath);
 
         var text = File.ReadAllText(configPath);
-
-        // ---- t16：真实调用 tier0.dll 原生 KV3 入口（只读探针，不建完整树）----
-        tier0Path ??= Path.Combine(
-            Path.GetDirectoryName(Path.GetDirectoryName(configPath)) ?? ".", Tier0Kv3Service.DefaultTier0Relative);
-        Tier0ProbeResult? probe = null;
-        try { probe = Tier0Kv3Service.ProbeNative(tier0Path, text); }
-        catch (Exception ex) { probe = new Tier0ProbeResult { Detail = ex.GetType().Name + ": " + ex.Message }; }
-
 
         // ---- 头行（encoding / format GUID）—— 全部用命名组，避免编号错位 ----
         string encName = "", encId = "", fmtName = "", fmtId = "";
@@ -83,12 +74,12 @@ public static partial class Kv3ConfigService
 
         var nat = Kv3NativeArena.Load(gameBinDir, text);
         if (!nat.Ok || string.IsNullOrEmpty(nat.Json))
-            throw new InvalidDataException("tier0 原生 KV3 解析失败（游戏目录: " + gameBinDir + "）: " + nat.Detail);
+            throw new InvalidDataException($"tier0 原生 KV3 解析失败（游戏目录: {gameBinDir}）: {nat.Detail}");
 
         var root = Kv3JsonModel.ParseJson(nat.Json);
-        NativeNote = "tier0 原生链 (" + nat.Detail + ")";
+        NativeNote = $"tier0 原生链 ({nat.Detail})";
         if (root.Count == 0)
-            throw new InvalidDataException("KV3 解析结果为空（文件: " + configPath + "）");
+            throw new InvalidDataException($"KV3 解析结果为空（文件: {configPath}）");
 
         // ---- asset_warnings（计数 + 标题）----
         int warnCount = 0; string warnTitle = "";
@@ -185,7 +176,6 @@ public static partial class Kv3ConfigService
             FileLines = File.ReadAllLines(configPath).Length,
             WarningsCount = warnCount,
             WarningTitle = warnTitle,
-            NativeProbe = probe
         };
     }
 

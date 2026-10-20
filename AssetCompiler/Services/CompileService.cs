@@ -15,10 +15,8 @@
 //   Tier1 = 进程内（签名解析 -> CreateInterface+注册表只读 -> 服务图预检 -> 齐备才编译）；
 //   Tier2 = 官方 resourcecompiler.exe（-i <file> -game <moddir> -nop4 -v），用户显式选择。
 // ============================================================================
-using System.Diagnostics;
-using System.Text.Json;
 using SDK.Native;
-using SDK.ResourceCompiler;
+using System.Diagnostics;
 
 namespace AssetCompiler.Services;
 
@@ -28,7 +26,7 @@ public sealed class CompileOutcome
     public string Stage { get; init; } = "";
     public string Detail { get; init; } = "";
     public int ExitCode { get; init; }
-    public List<string> Logs { get; init; } = new();
+    public List<string> Logs { get; init; } = [];
 }
 
 public static class CompileService
@@ -50,7 +48,7 @@ public static class CompileService
     ///     作为可预期错误上报——应用不崩（t12 曾因子进程内直调整个 UI 陪葬）。
     /// </para>
     /// </summary>
-    public static CompileOutcome RunTier1(string gameBinDir, string sourceFile)
+    public static CompileOutcome RunTier1(string gameBinDir)
     {
         var logs = new List<string>();
         try
@@ -59,8 +57,8 @@ public static class CompileService
                 return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "游戏 bin 目录不存在: " + gameBinDir, Logs = logs };
 
             // ① 签名解析（幂等；已初始化则复用）
-            if (!SDK.Native.Functions.IsInitialized) SDK.Native.Functions.Initialize(gameBinDir);
-            foreach (var l in SDK.Native.Functions.ResolveLog) logs.Add("resolve: " + l);
+            if (!Functions.IsInitialized) Functions.Initialize(gameBinDir);
+            foreach (var l in Functions.ResolveLog) logs.Add("resolve: " + l);
 
             // ② CreateInterface + 注册表只读验证（进程内可完成的能力）
             var dll = Path.Combine(gameBinDir, @"bin\win64\resourcecompiler.dll");
@@ -97,6 +95,7 @@ public static class CompileService
             return new CompileOutcome { Ok = false, Stage = "tier1", Detail = ex.GetType().Name + ": " + ex.Message, Logs = logs };
         }
     }
+
     /// <summary>Tier2：官方 resourcecompiler.exe（-i <file> -game <moddir> -nop4 -v）。</summary>
     public static CompileOutcome RunTier2(string exePath, string gameDir, string sourceFile)
     {
@@ -138,7 +137,7 @@ public static class CompileService
         }
         catch (Exception ex)
         {
-            return new CompileOutcome { Ok = false, Stage = "tier2", Detail = ex.GetType().Name + ": " + ex.Message, ExitCode = -1, Logs = logs };
+            return new CompileOutcome { Ok = false, Stage = "tier2", Detail = $"{ex.GetType().Name}: {ex.Message}", ExitCode = -1, Logs = logs };
         }
     }
 }

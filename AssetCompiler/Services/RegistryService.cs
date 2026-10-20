@@ -18,27 +18,26 @@ public static class RegistryService
     public static void ValidateTable(RegistrySnapshot snap) => SDK.ResourceCompiler.RegistryService.ValidateTable(snap);
 
     /// <summary>按标识符解析条目（UI 口径：条目级 28/29）。</summary>
-    public static AssetCompiler.Models.ResolveResult Resolve(RegistrySnapshot snap, string identifier)
+    public static ResolveResult Resolve(RegistrySnapshot snap, string identifier)
     {
         var hit = SDK.ResourceCompiler.RegistryService.Resolve(snap, identifier);
         if (!hit.Found)
         {
-            return new AssetCompiler.Models.ResolveResult
+            return new ResolveResult
             {
                 Found = false,
                 Identifier = identifier,
-                Message = "未命中：注册表 " + snap.Entries.Count + " 条中没有 " + identifier +
-                          "。引擎侧对应错误串语义: Resource type compiler identifier not found"
+                Message = $"未命中：注册表 {snap.Entries.Count} 条中没有 {identifier}。引擎侧对应错误串语义: Resource type compiler identifier not found"
             };
         }
 
         var e = hit.Entry!;
-        return new AssetCompiler.Models.ResolveResult
+        return new ResolveResult
         {
             Found = true,
             Identifier = identifier,
-            Message = "命中 idx " + e.Index,
-            Entry = new AssetCompiler.Models.RegistryEntryRow
+            Message = $"命中 idx {e.Index}",
+            Entry = new RegistryEntryRow
             {
                 Index = e.Index,
                 Identifier = e.Identifier,

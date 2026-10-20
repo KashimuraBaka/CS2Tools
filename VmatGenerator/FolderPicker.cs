@@ -1,6 +1,6 @@
+using Microsoft.Win32;
 using System.IO;
 using VmatGenerator.Diagnostics;
-using Microsoft.Win32;
 
 namespace VmatGenerator;
 

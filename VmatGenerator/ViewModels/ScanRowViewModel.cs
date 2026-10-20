@@ -1,7 +1,7 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using System.IO;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
 using VmatGenerator.Imaging;
 using VmatLib;
 

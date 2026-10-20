@@ -199,13 +199,13 @@ public sealed partial class Module : IDisposable
     }
 }
 
-public sealed class SignatureNotFoundException(string name, string mod, string pat, List<int> hits) 
+public sealed class SignatureNotFoundException(string name, string mod, string pat, List<int> hits)
     : Exception($"签名 [{name}] 在 {Path.GetFileName(mod)} 中未命中（模式 {hits.Count} 处）。游戏更新后代码已漂移，需按 Signatures.cs 中该条的「如何重新找到它」注释重新定位。")
 {
     public string SignatureName { get; } = name; public string ModulePath { get; } = mod; public string Pattern { get; } = pat;
 }
 
-public sealed class SignatureAmbiguousException(string name, string mod, string pat, List<int> hits) 
+public sealed class SignatureAmbiguousException(string name, string mod, string pat, List<int> hits)
     : Exception($"签名 [{name}] 在 {Path.GetFileName(mod)} 中有 {hits.Count} 处命中 ({string.Join(", ", hits.ConvertAll(h => "0x" + h.ToString("X")))}），无法确定用哪一个。需加长模式或改用「定位调用方再提取 rel32」的方式。")
 {
     public string SignatureName { get; } = name; public string ModulePath { get; } = mod; public string Pattern { get; } = pat; public List<int> Hits { get; } = hits;

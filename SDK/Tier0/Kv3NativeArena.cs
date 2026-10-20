@@ -6,7 +6,7 @@
 //   2) 构造 CKV3Arena（零填充 + 字段写入）
 //   3) Functions.SymTabPoolInit(arena+4352, 2048, 0x200000, 0)  —— 内嵌符号表 bucket 初始化
 //   4) 建 253 节点空闲链 + 取 node0 + 写头
-                        //   5) Functions.LoadKv3Arena(arena, &err, &buf, &fmt, pathId, 0) -> true
+//   5) Functions.LoadKv3Arena(arena, &err, &buf, &fmt, pathId, 0) -> true
 //   6) root = arena+120 -> Functions.SaveKv3AsJson(root, &out, &err) -> JSON
 //
 // t22 重构要点（CS2Fixes 范式）：

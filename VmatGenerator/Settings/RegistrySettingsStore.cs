@@ -1,9 +1,9 @@
-﻿using System.IO;
+﻿using Microsoft.Win32;
+using System.IO;
 using System.Security;
 using System.Security.Principal;
 using VmatGenerator.Diagnostics;
 using VmatLib;
-using Microsoft.Win32;
 
 namespace VmatGenerator.Settings;
 
