@@ -42,7 +42,7 @@ public sealed class ResolveResult
 
 public sealed class RegistrySnapshot
 {
-    public List<RegistryEntryRow> Entries { get; init; } = new();
+    public List<RegistryEntryRow> Entries { get; init; } = [];
     public IntPtr ModuleBase { get; init; }
     public IntPtr SystemObject { get; init; }
     public string RttiName { get; init; } = "";

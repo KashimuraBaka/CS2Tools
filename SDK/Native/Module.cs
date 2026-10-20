@@ -17,6 +17,13 @@ namespace SDK.Native;
 /// <summary>一个已加载的原生模块（DLL）。</summary>
 public sealed partial class Module : IDisposable
 {
+    // t24/t28g：LibraryImport（源生成 P/Invoke 封送，编译期生成 marshalling 代码）
+    [LibraryImport("kernel32", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr GetModuleHandleW(string lpModuleName);
+
+    [LibraryImport("kernel32", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr LoadLibraryW(string lpFileName);
+
     private IntPtr _handle;
     private bool _disposed;
 
@@ -52,13 +59,6 @@ public sealed partial class Module : IDisposable
         foreach (var s in secs) { uint e = s.Va + s.VirtualSize; if (e > m) m = e; }
         return m;
     }
-
-    // t24/t28g：LibraryImport（源生成 P/Invoke 封送，编译期生成 marshalling 代码）
-    [LibraryImport("kernel32", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
-    private static partial IntPtr GetModuleHandleW(string lpModuleName);
-
-    [LibraryImport("kernel32", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
-    private static partial IntPtr LoadLibraryW(string lpFileName);
 
     private static IntPtr GetModuleBase(string path)
     {

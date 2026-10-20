@@ -105,7 +105,7 @@ public partial class App : Application
         Console.WriteLine($"  distinct level: {distinctHit}/27 hit (CompilePanorama 3 entries -> 1 distinct)");
 
         Console.WriteLine();
-        Console.WriteLine(fails == 0 ? "===== SELFTEST: ALL PASS =====" :($"===== SELFTEST: {fails} FAIL ====="));
+        Console.WriteLine(fails == 0 ? "===== SELFTEST: ALL PASS =====" : ($"===== SELFTEST: {fails} FAIL ====="));
         return fails == 0 ? 0 : 1;
     }
 }

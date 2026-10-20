@@ -40,9 +40,7 @@ using System.Text.Json;
 namespace SDK.Native;
 
 /// <summary>本机函数调用失败（加载、导出查找、锚点校验等）时抛出。</summary>
-public sealed class NativeInvokeException(string message) : Exception(message)
-{
-}
+public sealed class NativeInvokeException(string message) : Exception(message) { }
 
 /// <summary>“给定 DLL 路径 + 函数名字符串 + 参数 → 调用该函数”的 helper。</summary>
 public static partial class NativeStringFunctionInvoker
@@ -286,27 +284,18 @@ public static partial class NativeStringFunctionInvoker
         return (m.ResolveDelegateAtRva<TDelegate>(rva), a);
     }
 
-    /// <summary>
-    /// 路径 B 的“两级调用”形态：拿到内部函数返回的指针后，再用委托调用它。
-    /// （对应 t24 的 GetCompilerByIdentifier：解析函数未导出 ⇒ 用 RVA 定位，返回值再转委托。）
-    /// </summary>
-    public static TSecond InvokeRvaAndReinterpret<TFirst, TSecond>(
-        string dllPath, int firstRva, TFirst first, Func<TFirst, IntPtr> invoke, Type secondDelegateType, params object?[] secondArgs)
-        where TFirst : Delegate
-    {
-        var d1 = ResolveRva<TFirst>(dllPath, firstRva);
-        IntPtr got = invoke(d1);
-        if (got == IntPtr.Zero) throw new NativeInvokeException("第一阶段返回 NULL（解析失败或未命中）。");
-        var d2 = Marshal.GetDelegateForFunctionPointer(got, secondDelegateType);
-        return (TSecond)d2.DynamicInvoke(secondArgs)!;
-    }
-
     // ---------------- t24 链路：registry 表 + 大小写不敏感扫描 ----------------
 
     /// <summary>注册表条目（t24 实测结构：{char* id; void* pfnFactory; char* module; char* iface; void* cached}，步长 0x28）。</summary>
     public readonly record struct CompilerRegistryEntry(
-        int Index, string Identifier, IntPtr EntryAddress, IntPtr Factory, IntPtr CachedInstance,
-        string? ModuleName, string? InterfaceName);
+        int Index,
+        string Identifier,
+        IntPtr EntryAddress, 
+        IntPtr Factory, 
+        IntPtr CachedInstance,
+        string? ModuleName,
+        string? InterfaceName
+    );
 
     /// <summary>t24 的解析函数 CResourceCompilerSystem::GetCompilerByIdentifier **未导出**（仅 6 个导出，无此项）。</summary>
     public const string T24ResolverSymbol = "CResourceCompilerSystem::GetCompilerByIdentifier";
@@ -320,8 +309,7 @@ public static partial class NativeStringFunctionInvoker
     /// 否则会实测到 AccessViolationException（见 reports\dllimport_vdata_resourcecompiler_schema_report.md 的失败模式一节）。</para>
     /// 与引擎一致：**大小写不敏感**逐条扫描（复刻 V_stricmp_fast 的比较语义）。
     /// </summary>
-    public static CompilerRegistryEntry? ResolveCompilerFactoryByString(
-        string dllPath, string identifier, string anchorsJsonPath, int entryCount = 43)
+    public static CompilerRegistryEntry? ResolveCompilerFactoryByString(string dllPath, string identifier, string anchorsJsonPath, int entryCount = 43)
     {
         var (_, sha, imageBase, _, root) = ReadAnchors(anchorsJsonPath);
         if (!string.IsNullOrEmpty(sha)) ValidateBuild(dllPath, sha);
@@ -334,18 +322,18 @@ public static partial class NativeStringFunctionInvoker
         int tableRva = checked((int)(Convert.ToUInt64(tableVa.Replace("0x", ""), 16) - baseVal));
 
         using var m = LoadWithDllImport(dllPath);
-        IntPtr p = m.GetRva(tableRva);
+        var p = m.GetRva(tableRva);
         for (int i = 0; i < entryCount; i++)
         {
-            IntPtr e = IntPtr.Add(p, i * 0x28);
-            IntPtr idPtr = Marshal.ReadIntPtr(e);
-            string id = idPtr == IntPtr.Zero ? "" : (Marshal.PtrToStringAnsi(idPtr) ?? "");
+            var e = IntPtr.Add(p, i * 0x28);
+            var idPtr = Marshal.ReadIntPtr(e);
+            var id = idPtr == IntPtr.Zero ? "" : (Marshal.PtrToStringAnsi(idPtr) ?? "");
             if (string.Equals(id, identifier, StringComparison.OrdinalIgnoreCase))   // V_stricmp_fast 语义
             {
-                IntPtr fn = Marshal.ReadIntPtr(e, 8);
-                IntPtr cached = Marshal.ReadIntPtr(e, 0x20);
-                IntPtr modPtr = Marshal.ReadIntPtr(e, 0x10);
-                IntPtr ifPtr = Marshal.ReadIntPtr(e, 0x18);
+                var fn = Marshal.ReadIntPtr(e, 8);
+                var cached = Marshal.ReadIntPtr(e, 0x20);
+                var modPtr = Marshal.ReadIntPtr(e, 0x10);
+                var ifPtr = Marshal.ReadIntPtr(e, 0x18);
                 return new CompilerRegistryEntry(i, id, e, fn, cached,
                     modPtr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(modPtr),
                     ifPtr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(ifPtr));
@@ -366,15 +354,15 @@ public static partial class NativeStringFunctionInvoker
         int tableRva = checked((int)(Convert.ToUInt64(tableVa.Replace("0x", ""), 16) - baseVal));
         var list = new List<CompilerRegistryEntry>(entryCount);
         using var m = LoadWithDllImport(dllPath);
-        IntPtr p = m.GetRva(tableRva);
+        var p = m.GetRva(tableRva);
         for (int i = 0; i < entryCount; i++)
         {
-            IntPtr e = IntPtr.Add(p, i * 0x28);
-            IntPtr idPtr = Marshal.ReadIntPtr(e);
-            IntPtr fn = Marshal.ReadIntPtr(e, 8);
-            IntPtr cached = Marshal.ReadIntPtr(e, 0x20);
-            IntPtr modPtr = Marshal.ReadIntPtr(e, 0x10);
-            IntPtr ifPtr = Marshal.ReadIntPtr(e, 0x18);
+            var e = IntPtr.Add(p, i * 0x28);
+            var idPtr = Marshal.ReadIntPtr(e);
+            var fn = Marshal.ReadIntPtr(e, 8);
+            var cached = Marshal.ReadIntPtr(e, 0x20);
+            var modPtr = Marshal.ReadIntPtr(e, 0x10);
+            var ifPtr = Marshal.ReadIntPtr(e, 0x18);
             list.Add(new CompilerRegistryEntry(i, idPtr == IntPtr.Zero ? "" : (Marshal.PtrToStringAnsi(idPtr) ?? ""), e, fn, cached,
                 modPtr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(modPtr),
                 ifPtr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(ifPtr)));
