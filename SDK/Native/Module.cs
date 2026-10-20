@@ -53,11 +53,12 @@ public sealed partial class Module : IDisposable
         return m;
     }
 
-    [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr GetModuleHandleW(string lpModuleName);
+    // t24/t28g：LibraryImport（源生成 P/Invoke 封送，编译期生成 marshalling 代码）
+    [LibraryImport("kernel32", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr GetModuleHandleW(string lpModuleName);
 
-    [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr LoadLibraryW(string lpFileName);
+    [LibraryImport("kernel32", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr LoadLibraryW(string lpFileName);
 
     private static IntPtr GetModuleBase(string path)
     {

@@ -33,8 +33,8 @@ public partial class App : Application
             if (!ok) fails++;
         }
 
-        string game = @"F:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive\game";
-        configPath = configPath ?? Path.Combine(game, Kv3ConfigService.DefaultConfigRelative);
+        var game = @"F:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive\game";
+        configPath ??= Path.Combine(game, Kv3ConfigService.DefaultConfigRelative);
 
         Console.WriteLine("=== 1) config load: " + configPath + " ===");
         ConfigLoadResult cfg;
@@ -53,16 +53,19 @@ public partial class App : Application
             Console.WriteLine("  --- Functions.Initialize 解析日志 ---");
             foreach (var l in SDK.Native.Functions.ResolveLog) Console.WriteLine("    " + l);
         }
-        Check("file size", cfg.FileBytes == 32212, cfg.FileBytes + " B / " + cfg.FileLines + " lines");
-        Check("assettypes rows", cfg.Types.Count == 71, "actual " + cfg.Types.Count + " (expect 71, incl. quoted key 3dsmax)");
-        Check("subassettypes rows", cfg.SubTypes.Count == 8, "actual " + cfg.SubTypes.Count + " (expect 8, separate section)");
-        Check("asset_warnings", cfg.WarningsCount == 1, cfg.WarningsCount + " group(s), title [" + cfg.WarningTitle + "]");
+        Check("file size", cfg.FileBytes == 32212, $"{cfg.FileBytes} B / {cfg.FileLines} lines");
+        Check("assettypes rows", cfg.Types.Count == 71, $"actual {cfg.Types.Count} (expect 71, incl. quoted key 3dsmax)");
+        Check("subassettypes rows", cfg.SubTypes.Count == 8, $"actual {cfg.SubTypes.Count} (expect 8, separate section)");
+        Check("asset_warnings", cfg.WarningsCount == 1, $"{cfg.WarningsCount} group(s), title [{cfg.WarningTitle}]");
         int withComp = cfg.Types.Count(t => t.HasCompiler);
-        Check("entries with compiler", withComp == 29, "actual " + withComp + " (expect 29 = 28 resolvable + 1 miss)");
+        Check("entries with compiler", withComp == 29, $"actual {withComp} (expect 29 = 28 resolvable + 1 miss)");
         Check("quoted key present", cfg.Types.Any(t => t.Name == "3dsmax"), "3dsmax is in the table (regex over text would miss it)");
         Console.WriteLine("  _class distribution: " + string.Join(" | ",
-            cfg.Types.GroupBy(t => t.Class).OrderByDescending(g => g.Count())
-                    .Select(g => g.Key + " " + g.Count() + (g.Count(x => x.HasCompiler) > 0 ? "(" + g.Count(x => x.HasCompiler) + " w/ compiler)" : ""))));
+            cfg.Types
+                .GroupBy(t => t.Class)
+                .OrderByDescending(g => g.Count())
+                .Select(g => $"{g.Key} {g.Count()}{(g.Any(x => x.HasCompiler) ? $"({g.Count(x => x.HasCompiler)} w/ compiler)" : "")}"))
+        );
 
         Console.WriteLine();
         Console.WriteLine();
@@ -75,35 +78,34 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Console.WriteLine("FAIL  registry read  ::  " + ex.GetType().Name + ": " + ex.Message);
+            Console.WriteLine($"FAIL  registry read  ::  {ex.GetType().Name}: {ex.Message}");
             return 1;
         }
-        Check("registry entries", reg.Entries.Count == 43, "actual " + reg.Entries.Count + " (table RVA " + reg.TableRvaText + ", index0 self-check passed)");
-        Check("CreateInterface + RTTI", reg.SystemObject != IntPtr.Zero && reg.RttiOk,
-            "sys=0x" + reg.SystemObject.ToString("X") + " RTTI=" + reg.RttiName);
+        Check("registry entries", reg.Entries.Count == 43, $"actual {reg.Entries.Count} (table RVA {reg.TableRvaText}, index0 self-check passed)");
+        Check("CreateInterface + RTTI", reg.SystemObject != IntPtr.Zero && reg.RttiOk, $"sys=0x{reg.SystemObject:X} RTTI={reg.RttiName}");
         Check("index0 identifier", reg.Entries.Count > 0 && reg.Entries[0].Identifier == "CompileWorldNode",
-            reg.Entries.Count > 0 ? ("idx " + reg.Entries[0].Index + " = " + reg.Entries[0].Identifier) : "(empty)");
+            reg.Entries.Count > 0 ? $"idx {reg.Entries[0].Index} = {reg.Entries[0].Identifier}" : "(empty)");
 
         Console.WriteLine();
         Console.WriteLine("=== 3) resolve every m_CompilerIdentifier ===");
         int hit = 0, miss = 0;
-        var missed = new System.Collections.Generic.List<string>();
+        var missed = new List<string>();
         foreach (var t in cfg.Types.Where(t => t.HasCompiler))
         {
             var r = RegistryService.Resolve(reg, t.CompilerIdentifier);
             if (r.Found && r.Entry is not null) { hit++; }
             else { miss++; missed.Add(t.Name + " -> " + t.CompilerIdentifier); }
         }
-        Check("resolvable entries", hit == 28, "hit " + hit + " / 29 (expect 28)");
-        Check("missed entries", miss == 1, "miss " + miss + " / 29 (expect 1)");
-        foreach (var m in missed) Console.WriteLine("    missed: " + m);
+        Check("resolvable entries", hit == 28, $"hit {hit} / 29 (expect 28)");
+        Check("missed entries", miss == 1, $"miss {miss} / 29 (expect 1)");
+        foreach (var m in missed) Console.WriteLine($"    missed: {m}");
         int distinctHit = cfg.Types.Where(t => t.HasCompiler)
             .Select(t => t.CompilerIdentifier).Distinct(StringComparer.OrdinalIgnoreCase)
             .Count(id => reg.Entries.Any(x => string.Equals(x.Identifier, id, StringComparison.OrdinalIgnoreCase)));
-        Console.WriteLine("  distinct level: " + distinctHit + "/27 hit (CompilePanorama 3 entries -> 1 distinct)");
+        Console.WriteLine($"  distinct level: {distinctHit}/27 hit (CompilePanorama 3 entries -> 1 distinct)");
 
         Console.WriteLine();
-        Console.WriteLine(fails == 0 ? "===== SELFTEST: ALL PASS =====" : ("===== SELFTEST: " + fails + " FAIL ====="));
+        Console.WriteLine(fails == 0 ? "===== SELFTEST: ALL PASS =====" :($"===== SELFTEST: {fails} FAIL ====="));
         return fails == 0 ? 0 : 1;
     }
 }

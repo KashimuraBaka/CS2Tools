@@ -50,7 +50,7 @@ public static class EngineServiceGuard
         var rcPath = Path.Combine(gameBinDir, Signatures.ResourceCompilerDll);
         var t0Path = Path.Combine(gameBinDir, Signatures.Tier0Dll);
         if (!File.Exists(rcPath) || !File.Exists(t0Path))
-            return new EngineServiceStatus(false, new[] { "dll-missing" }, "模块缺失: " + rcPath);
+            return new EngineServiceStatus(false, ["dll-missing"], $"模块缺失: {rcPath}");
 
         using var rc = Module.Load(rcPath);
         using var t0 = Module.Load(t0Path);
@@ -58,17 +58,15 @@ public static class EngineServiceGuard
         var missing = new List<string>();
         foreach (var (name, rva) in ServiceSlots)
         {
-            if (rva >= rc.SizeOfImage) { missing.Add(name + "(unmapped)"); continue; }   // 越界绝不读
-            long v = Marshal.ReadInt64(rc.GetRva(rva));
+            if (rva >= rc.SizeOfImage) { missing.Add($"{name}(unmapped)"); continue; }   // 越界绝不读
+            var v = Marshal.ReadInt64(rc.GetRva(rva));
             if (v == 0) missing.Add(name);
         }
         if (Tier0ThreadPoolRva >= t0.SizeOfImage) missing.Add("g_pThreadPool(unmapped)");
         else if (Marshal.ReadInt64(t0.GetRva(Tier0ThreadPoolRva)) == 0) missing.Add("g_pThreadPool");
 
         return missing.Count == 0
-            ? new EngineServiceStatus(true, Array.Empty<string>(), "引擎服务图完整（4+1 槽位非空）")
-            : new EngineServiceStatus(false, missing,
-                "引擎服务图未注册（缺 " + missing.Count + " 槽位）——resourcecompiler 编译路径由引擎主程序注册服务，" +
-                "本进程只加载了 tier0/resourcecompiler，无法进程内编译");
+            ? new EngineServiceStatus(true, [], "引擎服务图完整（4+1 槽位非空）")
+            : new EngineServiceStatus(false, missing, $"引擎服务图未注册（缺 {missing.Count} 槽位）——resourcecompiler 编译路径由引擎主程序注册服务，本进程只加载了 tier0/resourcecompiler，无法进程内编译");
     }
 }

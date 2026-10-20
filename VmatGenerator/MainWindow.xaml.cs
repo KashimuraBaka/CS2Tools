@@ -132,7 +132,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>把最大化矩形限制到显示器工作区（详见 <see cref="WmGetMinMaxInfo"/> 注释）。</summary>
-    private static IntPtr MaximizeBoundsHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    private static unsafe IntPtr MaximizeBoundsHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg != WmGetMinMaxInfo || lParam == IntPtr.Zero)
         {
@@ -171,11 +171,12 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
 
     /// <summary>WINRECT x 2 + POINT x 4（MINMAXINFO，Winuser.h）；仅取用到的前六个字段，其余原样保留。</summary>
     [StructLayout(LayoutKind.Sequential)]
@@ -189,19 +190,21 @@ public partial class MainWindow : Window
     }
 
     /// <summary>MONITORINFOEXW（Winuser.h）；szDevice 保留为定长 32 字符占位。</summary>
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct MONITORINFOEX
+    /// <summary>MONITORINFOEXW（Winuser.h）；szDevice 为定长 32 字符占位</summary>
+    /// <remarks>t28g：ByValTStr string 改为 fixed char——源生成 P/Invoke 不支持 ByValTStr，
+    /// fixed char 同时使结构体 blittable；本工程不读 szDevice，仅占位。</remarks>
+    [StructLayout(LayoutKind.Sequential)]
+    private unsafe struct MONITORINFOEX
     {
         public int CbSize;
         public int MonLeft, MonTop, MonRight, MonBottom;
         public int WorkLeft, WorkTop, WorkRight, WorkBottom;
         public uint Flags;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string DeviceName;
+        public fixed char DeviceName[32];
     }
 
-    [DllImport("dwmapi.dll", PreserveSig = true)]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int attributeValue, int attributeSize);
+    [LibraryImport("dwmapi.dll")]
+    private static partial int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int attributeValue, int attributeSize);
 
     /// <summary>主 ViewModel（由 XAML 建立，这里只作类型化入口）。</summary>
     public MainViewModel ViewModel => (MainViewModel)DataContext;

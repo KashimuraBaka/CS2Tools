@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- t28g：LibraryImport 源生成封送需要 /unsafe -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <!-- IDE 风格提示（.editorconfig 里提升为 warning 的那些）参与构建报告，保证「0 提示」口径与 IDE 一致 -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
