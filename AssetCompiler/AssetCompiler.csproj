@@ -27,14 +27,6 @@
 
 
 
-  <!-- 全局 using：本工程源码（MainWindow/Services/Models）不写 using System.IO 等，
-       靠这里提供；与 ImplicitUsings 默认集有重叠但合法（重复 global using 不报错）。 -->
-  <ItemGroup>
-    <Using Include="System.IO" />
-    <Using Include="System.Text" />
-    <Using Include="System.Collections.Generic" />
-    <Using Include="System.Linq" />
-  </ItemGroup>
   <!-- t18：DLL 调用层抽到独立 SDK 工程；UI 只面对 SDK 的托管 API，不再直接 P/Invoke -->
   <ItemGroup>
     <ProjectReference Include="..\SDK\SDK.csproj" />

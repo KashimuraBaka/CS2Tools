@@ -10,12 +10,6 @@
 	</PropertyGroup>
 
 
-	<!-- 全局 using：ImplicitUsings 默认集不含这两项；t28o 起 EnableDefaultCompileItems 已移除，
-	     这里的 Using 与默认 glob 共存（不再承担补偿职责）。 -->
-	<ItemGroup>
-		<Using Include="System.Text" />
-		<Using Include="System.Runtime.InteropServices" />
-	</ItemGroup>
 	<!-- 签名表（gamedata，t24 改 JSON 数据维护）：输出目录一份（免重编译）+ 内嵌一份（保底） -->
 	<ItemGroup>
 		<Content Include="signatures.json">

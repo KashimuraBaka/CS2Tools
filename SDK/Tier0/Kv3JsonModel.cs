@@ -8,6 +8,7 @@
 // 的诉求，又不必改 UI/Models 逻辑。
 // ============================================================================
 using System.Text.Json;
+using System.IO;
 
 namespace SDK.Tier0;
 

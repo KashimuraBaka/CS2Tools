@@ -36,6 +36,9 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.IO;
 
 namespace SDK.Native;
 

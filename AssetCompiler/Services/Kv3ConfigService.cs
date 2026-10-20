@@ -16,6 +16,7 @@
 using AssetCompiler.Models;
 using SDK.Tier0;
 using System.Text.RegularExpressions;
+using System.IO;
 
 namespace AssetCompiler.Services;
 

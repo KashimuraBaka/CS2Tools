@@ -15,6 +15,9 @@
 // （VEH 向量化异常恢复路线已实测不可行：.NET 运行时对原生 AV 走 fail-fast，
 //  且上下文重写后重执行仍崩，见 t28c 台账。）
 // ============================================================================
+using System.Runtime.InteropServices;
+using System.IO;
+
 namespace SDK.Native;
 
 /// <summary>引擎服务图状态。</summary>

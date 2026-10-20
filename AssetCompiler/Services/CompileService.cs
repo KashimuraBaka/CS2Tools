@@ -17,6 +17,7 @@
 // ============================================================================
 using SDK.ResourceCompiler;
 using System.Diagnostics;
+using System.IO;
 
 namespace AssetCompiler.Services;
 

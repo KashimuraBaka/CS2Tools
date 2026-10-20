@@ -13,6 +13,8 @@
 //   IsChannelEnabled(ch, 1..3) = true；LogDirect(ch, sev<=3, 0, text) -> 消息落 stdout；
 //   sev>=4 -> resp=1（LoggingResponse 抑制）。
 // ============================================================================
+using System.Runtime.InteropServices;
+
 namespace SDK.Native;
 
 /// <summary>tier0 LoggingSeverity_t 子集。</summary>

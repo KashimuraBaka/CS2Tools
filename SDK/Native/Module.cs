@@ -12,6 +12,10 @@
 // （anchors / 编译注册表 / KV3 协议都不在这里）。旧 helper 仍被 RegistryService、
 // InvokerSmokeTest 使用，逐步迁移后退役。
 // ============================================================================
+using System.Runtime.InteropServices;
+using System.Text;
+using System.IO;
+
 namespace SDK.Native;
 
 /// <summary>一个已加载的原生模块（DLL）。</summary>

@@ -12,6 +12,8 @@
 //     "CompileWorldNode"），不符则明确报错，不静默用错数据。
 // ============================================================================
 using SDK.Native;
+using System.Runtime.InteropServices;
+using System.IO;
 
 namespace SDK.ResourceCompiler;
 

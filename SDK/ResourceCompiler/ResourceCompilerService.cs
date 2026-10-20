@@ -13,6 +13,7 @@
 // ============================================================================
 using SDK.Native;
 using SDK.Tier0;
+using System.IO;
 
 namespace SDK.ResourceCompiler;
 

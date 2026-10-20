@@ -1,6 +1,7 @@
 using AssetCompiler.Services;
 using SDK.ResourceCompiler;
 using System.Windows;
+using System.IO;
 
 namespace AssetCompiler;
 

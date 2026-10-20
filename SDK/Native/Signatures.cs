@@ -14,6 +14,7 @@
 // 每条 howToRefind 写明了「失效时如何重新找到它」——游戏更新导致签名漂移时按它重定位。
 // ============================================================================
 using System.Text.Json;
+using System.IO;
 
 namespace SDK.Native;
 
