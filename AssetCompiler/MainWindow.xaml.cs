@@ -171,7 +171,7 @@ public partial class MainWindow : Window
         var d = new OpenFileDialog
         {
             Title = "选择资产源文件",
-            Filter = "资产源 (*.vmdl;*.vdata;*.vnmgraph;*.vsmart;*.vsnd;*.vcss)|*.vmdl;*.vdata;*.vnmgraph;*.vsmart;*.vsnd;*.vcss|所有文件 (*.*)|*.*",
+            Filter = "Source 2 资产原文件 (*.v*)|*.v*|所有文件 (*.*)|*.*",
             Multiselect = true
         };
         if (d.ShowDialog(this) == true)
