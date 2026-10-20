@@ -35,31 +35,6 @@ public sealed class SubAssetTypeRow
     public string Flags { get; init; } = "";
 }
 
-/// <summary>编译注册表的一条（从 resourcecompiler.dll 内存实时读出）。</summary>
-public sealed class RegistryEntryRow
-{
-    public int Index { get; init; }
-    public string Identifier { get; init; } = "";
-    public IntPtr Factory { get; init; }
-    public IntPtr CachedInstance { get; init; }
-    public IntPtr EntryAddress { get; init; }
-    public long FactoryRva { get; init; }
-    public long SingletonRva { get; init; }
-
-    public string FactoryRvaText => "0x" + FactoryRva.ToString("X");
-    public string SingletonRvaText => SingletonRva > 0 ? "0x" + SingletonRva.ToString("X") : "(not instantiated)";
-    public string FactoryVaText => "0x" + Factory.ToInt64().ToString("X");
-}
-
-/// <summary>编译器解析结果（UI 口径：条目级 28/29）。</summary>
-public sealed class ResolveResult
-{
-    public bool Found { get; set; }
-    public string Identifier { get; set; } = "";
-    public string Message { get; set; } = "";
-    public RegistryEntryRow? Entry { get; set; }
-}
-
 /// <summary>单个源文件的编译结果。</summary>
 public sealed class CompileItemResult
 {

@@ -1,7 +1,6 @@
 using AssetCompiler.Services;
 using SDK.ResourceCompiler;
 using System.Windows;
-using RegistryService = AssetCompiler.Services.RegistryService;   // UI 薄封装（与 SDK.ResourceCompiler.RegistryService 同名，别名定向）
 
 namespace AssetCompiler;
 

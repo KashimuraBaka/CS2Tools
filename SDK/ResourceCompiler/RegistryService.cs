@@ -170,7 +170,7 @@ public static class RegistryService
             };
         }
 
-        return new ResolveResult { Found = true, Identifier = identifier, Entry = hit, Message = "命中。" };
+        return new ResolveResult { Found = true, Identifier = identifier, Entry = hit, Message = $"命中 idx {hit.Index}" };
     }
 
     // CreateInterface(const char* interfaceName, void* returnCode) -> void*   [Microsoft x64]

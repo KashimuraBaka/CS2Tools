@@ -37,13 +37,16 @@ public sealed class ConfigLoadResult
 
 public static partial class Kv3ConfigService
 {
+    [GeneratedRegex(@"encoding:(?<enc>[a-z0-9]+):version\{(?<encId>[0-9a-fA-F\-]+)\}\s*format:(?<fmt>[a-z0-9]+):version\{(?<fmtId>[0-9a-fA-F\-]+)\}")]
+    private static partial Regex HeaderRegex();
+
     public const string DefaultConfigRelative = @"bin\assettypes_common.txt";
 
     /// <summary>tier0 原生链的运行说明（供日志面板显示用了哪条路径）。</summary>
     public static string NativeNote { get; set; } = "";
 
     /// <summary>加载并完整遍历 KV3 配置。</summary>
-    public static ConfigLoadResult Load(string configPath, string? tier0Path = null)
+    public static ConfigLoadResult Load(string configPath)
     {
         if (!File.Exists(configPath))
             throw new FileNotFoundException("配置文件不存在: " + configPath);
@@ -103,35 +106,35 @@ public static partial class Kv3ConfigService
             int hide = 0, blocks = 0, fields = 0;
             bool hasComp = false;
 
-            if (entry.Table is not null)
+            if (entry.Table is null)
+                continue;
+
+            foreach (var (fk, fv) in entry.Table)
             {
-                foreach (var (fk, fv) in entry.Table)
+                fields++;
+                switch (fk)
                 {
-                    fields++;
-                    switch (fk)
-                    {
-                        case "_class": cls = fv.Text; break;
-                        case "m_Ext": ext = fv.Text; break;
-                        case "m_FriendlyName": friendly = fv.Text; break;
-                        case "m_CompilerIdentifier":
-                            comp = fv.Text;
-                            hasComp = !string.IsNullOrEmpty(comp);
-                            break;
-                        case "m_Blocks":
-                            blocks = fv.Count;
-                            var ids = new List<string>(); var es = new List<string>();
-                            foreach (var blk in fv.Items)
-                            {
-                                if (blk.Table is not null && blk.Table.TryGetValue("m_BlockID", out var bid)) ids.Add(bid.Text);
-                                if (blk.Table is not null && blk.Table.TryGetValue("m_Encoding", out var ben)) es.Add(ben.Text);
-                            }
-                            blockIds = string.Join("|", ids);
-                            encs = string.Join("|", es);
-                            break;
-                        case "m_HideForRetailMods":
-                            hide = fv.Count;
-                            break;
-                    }
+                    case "_class": cls = fv.Text; break;
+                    case "m_Ext": ext = fv.Text; break;
+                    case "m_FriendlyName": friendly = fv.Text; break;
+                    case "m_CompilerIdentifier":
+                        comp = fv.Text;
+                        hasComp = !string.IsNullOrEmpty(comp);
+                        break;
+                    case "m_Blocks":
+                        blocks = fv.Count;
+                        var ids = new List<string>(); var es = new List<string>();
+                        foreach (var blk in fv.Items)
+                        {
+                            if (blk.Table is not null && blk.Table.TryGetValue("m_BlockID", out var bid)) ids.Add(bid.Text);
+                            if (blk.Table is not null && blk.Table.TryGetValue("m_Encoding", out var ben)) es.Add(ben.Text);
+                        }
+                        blockIds = string.Join("|", ids);
+                        encs = string.Join("|", es);
+                        break;
+                    case "m_HideForRetailMods":
+                        hide = fv.Count;
+                        break;
                 }
             }
 
@@ -178,7 +181,4 @@ public static partial class Kv3ConfigService
             WarningTitle = warnTitle,
         };
     }
-
-    [GeneratedRegex(@"encoding:(?<enc>[a-z0-9]+):version\{(?<encId>[0-9a-fA-F\-]+)\}\s*format:(?<fmt>[a-z0-9]+):version\{(?<fmtId>[0-9a-fA-F\-]+)\}")]
-    private static partial Regex HeaderRegex();
 }
