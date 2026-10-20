@@ -48,7 +48,7 @@ public static class CompileService
     ///     作为可预期错误上报——应用不崩（t12 曾因子进程内直调整个 UI 陪葬）。
     /// </para>
     /// </summary>
-    public static CompileOutcome RunTier1(string gameBinDir)
+    public static CompileOutcome RunTier1(string gameBinDir, string sourceFile)
     {
         var logs = new List<string>();
         try
@@ -66,7 +66,41 @@ public static class CompileService
             SDK.ResourceCompiler.RegistryService.ValidateTable(reg);
             logs.Add($"CreateInterface + registry OK: {reg.Entries.Count} entries (index0 = {reg.Entries[0].Identifier}, table RVA {reg.TableRvaText})");
 
-            // ③ 引擎服务图预检——编译路径的前置门
+            // ③ KV3 类资源（.vnmgraph/.vdata）：产物即 KV3 二进制 ⇒ **进程内直接编译**（t28i）
+            //    序列化是 tier0 内部函数，不碰引擎服务图；大栈线程防深层树爆栈。
+            var ext = Path.GetExtension(sourceFile).ToLowerInvariant();
+            if (ext is ".vnmgraph" or ".vdata")
+            {
+                var srcText = File.ReadAllText(sourceFile);
+                if (!srcText.TrimStart().StartsWith("<!--", StringComparison.Ordinal))
+                    return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "不是 KV3 文本源（缺 kv3 头）：" + sourceFile, Logs = logs };
+
+                byte[]? outBytes = null; string? compileErr = null;
+                var th = new System.Threading.Thread(() =>
+                {
+                    try { var r = SDK.Tier0.Kv3NativeArena.CompileKv3Binary(srcText); if (r.Ok) outBytes = Convert.FromBase64String(r.Json); else compileErr = r.Detail; }
+                    catch (Exception ex) { compileErr = ex.GetType().Name + ": " + ex.Message; }
+                }, 32 * 1024 * 1024);   // 二进制序列化器递归深、栈帧大，1MB 级图形需大栈
+                th.Start(); th.Join();
+
+                if (outBytes is null)
+                    return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "KV3 二进制编译失败: " + compileErr, Logs = logs };
+
+                // 输出默认落源目录；Steam 库等只读位置回退到临时目录（CS2 安装目录通常不可写）
+                var outPath = sourceFile + "_c";
+                try { File.WriteAllBytes(outPath, outBytes); }
+                catch (Exception ex)
+                {
+                    var fallback = Path.Combine(AppContext.BaseDirectory, Path.GetFileName(outPath));
+                    File.WriteAllBytes(fallback, outBytes);
+                    logs.Add($"源目录不可写（{ex.GetType().Name}），回退: {fallback}");
+                    outPath = fallback;
+                }
+                logs.Add($"KV3 binary compiled in-process: {outBytes.Length} B -> {outPath}");
+                return new CompileOutcome { Ok = true, Stage = "tier1", Detail = $"KV3 二进制编译成功：{outBytes.Length} B（VK3 魔数 + 格式 GUID），输出 {outPath}", ExitCode = 0, Logs = logs };
+            }
+
+            // ④ 引擎服务图预检——编译路径的前置门
             var svc = SDK.Native.EngineServiceGuard.Check(gameBinDir);
             if (!svc.Complete)
             {

@@ -111,6 +111,9 @@ public static class Functions
 
     public static bool IsInitialized { get; private set; }
 
+    /// <summary>Initialize 时的游戏 bin 目录（供 SDK 内部按需再加载模块）。</summary>
+    public static string GameBinDir { get; private set; } = "";
+
     // 解析出的关键 RVA（签名解析的统一产物）
     public static int RvaLoadKv3Arena { get; private set; }
     public static int RvaSaveKv3AsJson { get; private set; }
@@ -137,6 +140,7 @@ public static class Functions
         if (!File.Exists(tier0Path)) throw new FunctionResolveException("Initialize", "tier0.dll 不存在: " + tier0Path);
         if (!File.Exists(rcPath)) throw new FunctionResolveException("Initialize", "resourcecompiler.dll 不存在: " + rcPath);
 
+        GameBinDir = gameBinDir;
         using var tier0 = Module.Load(tier0Path);
         using var rc = Module.Load(rcPath);
 

@@ -368,6 +368,108 @@ public static class Kv3NativeArena
                 if (h != 0) Marshal.FreeHGlobal(h);
         }
     }
+    /// <summary>
+    /// KV3 文本 → KV3 **二进制**（t28i：进程内编译 KV3 类资源的正确路径）。
+    /// <para>
+    /// 原理（IDA 反编译 SaveKV3ToFile=0x124C70 实证）：该函数的序列化段
+    /// （sub_1800C7360）是 **tier0 内部函数**，只有最后「写文件」走了引擎文件系统服务
+    /// （qword_1803A9608 vtable+208）。因此序列化可进程内完成，写盘由调用方自己做。
+    /// </para>
+    /// <para>
+    /// 适用：编译产物 = KV3 二进制的资源（.vnmgraph / .vdata 等）。
+    /// 不适用：.vmdl 等需要 ModelDoc/mesh 处理的资源（那些仍须引擎服务图）。
+    /// </para>
+    /// <para>
+    /// ★ 栈：二进制序列化器对深层树递归且栈帧大（~0x400 B/层），1 MB 级动画图在主线程
+    /// 会爆栈（0xC0000005）。调用方应放在大栈线程（≥16 MB）——CompileService 已如此做。
+    /// </para>
+    /// </summary>
+    /// <param name="kv3Text">KV3 文本源（须带 kv3 头）。</param>
+    /// <param name="binaryFormatGuid">输出二进制格式 GUID；null = 当前版本 v5（6eb109e6-6b85-4583-a312-703a6e04068c）。</param>
+    public static unsafe NativeKv3Result CompileKv3Binary(string kv3Text, byte[]? binaryFormatGuid = null)
+    {
+        Functions.EnsureInitialized();
+
+        // 当前 KV3 二进制格式版本（sub_1800BE340 白名单第 5 项，最新）
+        binaryFormatGuid ??= new byte[] { 0xE6, 0x09, 0xB1, 0x6E, 0x85, 0x6B, 0x83, 0x45, 0xA3, 0x12, 0x70, 0x3A, 0x6E, 0x04, 0x06, 0x8C };
+
+        nint kv = 0, err = 0, textPtr = 0, fmtName = 0, pathId = 0, bufMem = 0, fmtMem = 0, buf = 0, outBuf = 0, serErr = 0;
+        try
+        {
+            // ---- 1) 解析：KV3/KV1 文本 → KeyValues3 树（bit0=1 惰性对象）----
+            kv = Marshal.AllocHGlobal(512);
+            for (int i = 0; i < 512; i++) Marshal.WriteByte(kv, i, 0);
+            Marshal.WriteByte(kv, 0, 1);
+            err = Marshal.AllocHGlobal(256);
+            for (int i = 0; i < 256; i++) Marshal.WriteByte(err, i, 0);
+            bufMem = Marshal.AllocHGlobal(256);
+            for (int i = 0; i < 256; i++) Marshal.WriteByte(bufMem, i, 0);
+            try { Functions.CUtlBufferCtor(bufMem, 0, 0, 0); } catch { }
+            var bufStruct = Marshal.PtrToStructure<CUtlBuffer>(bufMem);
+            textPtr = Utf8(kv3Text);
+            bufStruct.Flags = (uint)(Encoding.UTF8.GetByteCount(kv3Text) + 1) | 0x80000000u;
+            bufStruct.pBase = (byte*)textPtr;
+            bufStruct.nStart = 0;
+            bufStruct.nEnd = Encoding.UTF8.GetByteCount(kv3Text);
+            buf = Marshal.AllocHGlobal(256);
+            for (int i = 0; i < 256; i++) Marshal.WriteByte(buf, i, 0);
+            Marshal.StructureToPtr(bufStruct, buf, false);
+
+            fmtMem = Marshal.AllocHGlobal(24);
+            for (int i = 0; i < 24; i++) Marshal.WriteByte(fmtMem, i, 0);
+            fmtName = Utf8("generic");
+            var srcFmt = new KV3ID_t { pName = (byte*)fmtName, Data1 = 0x7412167Cu, Data2 = 0x06E9, Data3 = 0x4698 };
+            srcFmt.Data4[0] = 0xAF; srcFmt.Data4[1] = 0xF2; srcFmt.Data4[2] = 0xE6; srcFmt.Data4[3] = 0x3E;
+            srcFmt.Data4[4] = 0xB5; srcFmt.Data4[5] = 0x90; srcFmt.Data4[6] = 0x37; srcFmt.Data4[7] = 0xE7;
+            Marshal.StructureToPtr(srcFmt, fmtMem, false);
+            pathId = Utf8("GAME");
+
+            if (!Functions.LoadKv3FromKv3OrKv1(kv, err, buf, fmtMem, pathId, 0))
+                return new NativeKv3Result { Ok = false, Detail = "KV3 解析失败: " + ReadCUtlString(err) };
+
+            // ---- 2) 二进制格式 fmt（输出 GUID）----
+            var outFmtMem = Marshal.AllocHGlobal(24);
+            for (int i = 0; i < 24; i++) Marshal.WriteByte(outFmtMem, i, 0);
+            var outFmt = new KV3ID_t { pName = (byte*)fmtName };
+            outFmt.Data1 = BitConverter.ToUInt32(binaryFormatGuid, 0);
+            outFmt.Data2 = BitConverter.ToUInt16(binaryFormatGuid, 4);
+            outFmt.Data3 = BitConverter.ToUInt16(binaryFormatGuid, 6);
+            for (int i = 0; i < 8; i++) outFmt.Data4[i] = binaryFormatGuid[8 + i];
+            Marshal.StructureToPtr(outFmt, outFmtMem, false);
+
+            // ---- 3) 序列化（tier0 内部二进制写入器；经 Module 按 RVA 取）----
+            using var m = Module.Load(Path.Combine(Functions.GameBinDir, Signatures.Tier0Dll));
+            var ser = m.ResolveDelegateAtRva<SaveKv3BinaryFn>(RvaSaveKv3Binary);
+            outBuf = Marshal.AllocHGlobal(256);
+            for (int i = 0; i < 256; i++) Marshal.WriteByte(outBuf, i, 0);
+            try { Functions.CUtlBufferCtor(outBuf, 1 << 20, 0, 0); } catch { }
+            serErr = Marshal.AllocHGlobal(256);
+            for (int i = 0; i < 256; i++) Marshal.WriteByte(serErr, i, 0);
+
+            if (ser(outFmtMem, outFmtMem, kv, serErr, outBuf, 0) == 0)
+                return new NativeKv3Result { Ok = false, Detail = "二进制序列化失败: " + ReadCUtlString(serErr) };
+
+            // ---- 4) 取输出（pBase + nPut）----
+            long pBase = Marshal.ReadInt64(outBuf, 8);
+            int len = Marshal.ReadInt32(outBuf, 32) - Marshal.ReadInt32(outBuf, 16);
+            if (pBase == 0 || len <= 0) return new NativeKv3Result { Ok = false, Detail = "序列化输出为空" };
+            var bytes = new byte[len];
+            for (int i = 0; i < len; i++) bytes[i] = Marshal.ReadByte((nint)pBase, i);
+            return new NativeKv3Result { Ok = true, Json = Convert.ToBase64String(bytes), Detail = "kv3 binary, " + len + " B" };
+        }
+        finally
+        {
+            foreach (var h in new[] { kv, err, textPtr, fmtName, pathId, bufMem, fmtMem, buf, outBuf, serErr })
+                if (h != 0) Marshal.FreeHGlobal(h);
+        }
+    }
+
+    // SaveKV3ToFile 的二进制序列化段（sub_1800C7360）：(fmt, fmt2, root, err, buf, flags)
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    private delegate byte SaveKv3BinaryFn(nint fmt, nint fmt2, nint root, nint serr, nint buf, int flags);
+
+    /// <summary>二进制序列化器 RVA（tier0 sub_1800C7360；随游戏更新需重定位）。</summary>
+    private const int RvaSaveKv3Binary = 0xC7360;
     private static nint Utf8(string s)
     {
         var b = Encoding.UTF8.GetBytes(s + "\0");

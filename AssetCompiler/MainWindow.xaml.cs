@@ -203,7 +203,7 @@ public partial class MainWindow : Window
         foreach (var s in Sources.ToList())
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var o = await Task.Run(() => CompileService.RunTier1(GameDir));
+            var o = await Task.Run(() => CompileService.RunTier1(GameDir, s));
             sw.Stop();
             results.Add(new CompileItemResult
             {
@@ -212,7 +212,7 @@ public partial class MainWindow : Window
                 Tier = "Tier1",
                 Detail = o.Detail,
                 ElapsedMs = sw.ElapsedMilliseconds,
-                OutputPath = "-"
+                OutputPath = o.Ok && o.Detail.Contains("输出 ") ? o.Detail.Split("输出 ")[1] : "-"
             });
             foreach (var l in o.Logs) Log("  [host] " + l);
             Log($"Tier1 {Path.GetFileName(s)} => {(o.Ok ? "成功" : "失败")} ({sw.ElapsedMilliseconds} ms): {o.Detail}");
