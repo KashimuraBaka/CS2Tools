@@ -34,7 +34,6 @@
 // ---------------------------------------------------------------------------
 
 using System.Buffers.Binary;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -291,8 +290,8 @@ public static partial class NativeStringFunctionInvoker
     public readonly record struct CompilerRegistryEntry(
         int Index,
         string Identifier,
-        IntPtr EntryAddress, 
-        IntPtr Factory, 
+        IntPtr EntryAddress,
+        IntPtr Factory,
         IntPtr CachedInstance,
         string? ModuleName,
         string? InterfaceName

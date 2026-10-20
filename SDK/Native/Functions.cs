@@ -11,8 +11,6 @@
 //   * 任一未命中/多命中 ⇒ 抛异常（fail-fast），不静默用错地址
 //   * 逐条记录解析地址到 ResolveLog，供自检/日志面板复核
 // ============================================================================
-using System.Runtime.InteropServices;
-
 namespace SDK.Native;
 
 /// <summary>未找到签名/导出时抛出（CS2Fixes 的 fail-fast 语义）。</summary>

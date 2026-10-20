@@ -17,8 +17,6 @@
 //   * 地址解析集中到 Functions.Initialize，未命中即 fail-fast。
 // ============================================================================
 using SDK.Native;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace SDK.Tier0;
 

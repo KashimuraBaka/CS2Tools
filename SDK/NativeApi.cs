@@ -8,7 +8,6 @@
 //
 // 已解析函数清单（Functions.Initialize 后可用；共 13 个 + 2 个日志函数）。
 // ============================================================================
-using System.Runtime.InteropServices;
 using SDK.Native;
 
 namespace SDK;

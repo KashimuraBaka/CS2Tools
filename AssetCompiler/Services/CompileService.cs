@@ -15,7 +15,7 @@
 //   Tier1 = 进程内（签名解析 -> CreateInterface+注册表只读 -> 服务图预检 -> 齐备才编译）；
 //   Tier2 = 官方 resourcecompiler.exe（-i <file> -game <moddir> -nop4 -v），用户显式选择。
 // ============================================================================
-using SDK.Native;
+using SDK.ResourceCompiler;
 using System.Diagnostics;
 
 namespace AssetCompiler.Services;
@@ -47,22 +47,21 @@ public static class CompileService
     /// </summary>
     public static CompileOutcome RunTier1(string gameBinDir, string sourceFile, string? outputDir = null)
     {
-        var r = SDK.ResourceCompiler.ResourceCompilerService.Compile(
-            new SDK.ResourceCompiler.CompileRequest(sourceFile, outputDir, gameBinDir));
+        var r = ResourceCompilerService.Compile(new CompileRequest(sourceFile, outputDir, gameBinDir));
         return new CompileOutcome
         {
             Ok = r.Ok,
             Stage = r.Stage,
             Detail = r.Detail,
             OutputPath = r.OutputPath ?? "-",
-            Logs = r.Logs?.ToList() ?? new List<string>(),
+            Logs = r.Logs?.ToList() ?? [],
         };
     }
     /// <summary>Tier2：官方 resourcecompiler.exe（-i <file> -game <moddir> -nop4 -v）。</summary>
     public static CompileOutcome RunTier2(string exePath, string gameDir, string sourceFile)
     {
         if (!File.Exists(exePath))
-            return new CompileOutcome { Ok = false, Stage = "tier2", Detail = "resourcecompiler.exe 不存在: " + exePath };
+            return new CompileOutcome { Ok = false, Stage = "tier2", Detail = $"resourcecompiler.exe 不存在: {exePath}" };
 
         var psi = new ProcessStartInfo
         {
@@ -86,7 +85,7 @@ public static class CompileService
             string err = p.StandardError.ReadToEnd();
             p.WaitForExit();
             foreach (var l in outp.Split('\n')) { var s = l.Trim(); if (s.Length > 0) logs.Add(s); }
-            foreach (var l in err.Split('\n')) { var s = l.Trim(); if (s.Length > 0) logs.Add("stderr: " + s); }
+            foreach (var l in err.Split('\n')) { var s = l.Trim(); if (s.Length > 0) logs.Add($"stderr: {s}"); }
             bool ok = p.ExitCode == 0;
             return new CompileOutcome
             {
