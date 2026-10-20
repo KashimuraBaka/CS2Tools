@@ -26,18 +26,17 @@ public partial class MainWindow : Window
 
     // 默认游戏路径（可在 UI 改）
     private const string DefaultGameDir = @"F:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive\game";
-    private const string DefaultDllRelative = @"bin\win64\resourcecompiler.dll";
-    private const string DefaultExeRelative = @"bin\win64\resourcecompiler.exe";
+    private const string DefaultDllRelative = @"bin\win64\resourcecompiler.dll";   // t28q：仅用于从 mod dir 推断签名根
     private const string DefaultAnchors = @"H:\dsh-workspace\CS2-IDA\tools\anchors\compiler-identifier-anchors.json";
 
     public MainWindow()
     {
         InitializeComponent();
         TxtGameDir.Text = DefaultGameDir;   // 唯一输入：游戏目录；配置/DLL/exe 均由它派生
-        TxtModDir.Text = Path.Combine(DefaultGameDir, "csgo");   // Tier2 的 -game mod 目录（默认 <游戏目录>\csgo）
-        // t28c/d：Tier1 全进程内——不起任何子进程（用户禁止额外进程方式；CompileHost 子工程已移除）。
-        // 进程内链路：签名解析 -> CreateInterface+注册表只读验证 -> 引擎服务图预检（缺则明确报错，绝不崩）。
-        Log("Tier1: 进程内模式（签名解析 + 只读注册表验证 + 引擎服务图预检）");
+        // t28q：唯一编译路径——SDK 签名解析后的进程内编译（不起任何子进程，无 DLL/exe 选择）。
+        // 链路：签名解析 -> CreateInterface+注册表只读 -> KV3 类资源直接编译（tier0 原生序列化器）
+        //       -> 其它资源报引擎服务图缺失（不调用、不崩）。
+        Log("进程内编译模式（签名解析 + tier0 原生链；无需选择 DLL/exe）");
     }
 
     // ---------------- 日志 ----------------
@@ -206,57 +205,31 @@ public partial class MainWindow : Window
         TxtSourceCount.Text = $"共 {Sources.Count} 个";
     }
 
-    private async void OnCompileTier1(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// 编译（t28q：唯一路径——SDK 签名解析后的进程内编译；不再提供 DLL/exe 选择）。
+    /// </summary>
+    private async void OnCompile(object sender, RoutedEventArgs e)
     {
         if (Sources.Count == 0) { MessageBox.Show(this, "请先添加源文件。", "提示", MessageBoxButton.OK, MessageBoxImage.Information); return; }
-        string dll = Path.Combine(GameDir, DefaultDllRelative);
-        Log("=== Tier1（进程内）开始 ===");
+        Log("=== 编译开始（进程内：签名解析 + tier0 原生链）===");
         var results = new List<CompileItemResult>();
         foreach (var s in Sources.ToList())
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var outDir = TxtOutputDir.Text.Trim();
-            var o = await Task.Run(() => CompileService.RunTier1(GameDir, s, string.IsNullOrWhiteSpace(outDir) ? null : outDir));
+            var o = await Task.Run(() => CompileService.CompileSource(GameDir, s, string.IsNullOrWhiteSpace(outDir) ? null : outDir));
             sw.Stop();
             results.Add(new CompileItemResult
             {
                 Source = Path.GetFileName(s),
                 Status = o.Ok ? "成功" : "失败",
-                Tier = "Tier1",
+                Tier = "进程内",
                 Detail = o.Detail,
                 ElapsedMs = sw.ElapsedMilliseconds,
                 OutputPath = o.OutputPath
             });
-            foreach (var l in o.Logs) Log("  [host] " + l);
-            Log($"Tier1 {Path.GetFileName(s)} => {(o.Ok ? "成功" : "失败")} ({sw.ElapsedMilliseconds} ms): {o.Detail}");
+            foreach (var l in o.Logs) Log("  [sdk] " + l);
+            Log($"{Path.GetFileName(s)} => {(o.Ok ? "成功" : "失败")} ({sw.ElapsedMilliseconds} ms): {o.Detail}");
         }
         GridCompile.ItemsSource = results;
-    }
-
-    private async void OnCompileTier2(object sender, RoutedEventArgs e)
-    {
-        if (Sources.Count == 0) { MessageBox.Show(this, "请先添加源文件。", "提示", MessageBoxButton.OK, MessageBoxImage.Information); return; }
-        string exe = Path.Combine(GameDir, DefaultExeRelative);
-        string game = TxtModDir.Text.Trim();
-        Log("=== Tier2（官方 resourcecompiler.exe）开始，-game=" + game + " ===");
-        var results = new List<CompileItemResult>();
-        foreach (var s in Sources.ToList())
-        {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            var o = await System.Threading.Tasks.Task.Run(() => CompileService.RunTier2(exe, game, s));
-            sw.Stop();
-            results.Add(new CompileItemResult
-            {
-                Source = Path.GetFileName(s),
-                Status = o.Ok ? "成功" : "失败",
-                Tier = "Tier2",
-                Detail = o.Detail,
-                ElapsedMs = sw.ElapsedMilliseconds,
-                OutputPath = "-"
-            });
-            foreach (var l in o.Logs.Take(40)) Log("  [exe] " + l);
-            Log($"Tier2 {Path.GetFileName(s)} => {(o.Ok ? "成功" : "失败")} ({sw.ElapsedMilliseconds} ms): {o.Detail}");
-        }
-        GridCompile.ItemsSource = results;
-    }
-}
+    }}

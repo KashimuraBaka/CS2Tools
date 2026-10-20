@@ -188,23 +188,14 @@
 
                     <ListBox Grid.Row="1" x:Name="ListSources" Height="110" Margin="0,0,0,8" />
 
-                    <!-- 操作行：两个 Tier 按钮左聚（主按钮突出），mod dir 右聚 -->
+                    <!-- 操作行（t28q：只有一条编译路径——签名解析后的进程内编译，无 DLL/exe 选择） -->
                     <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Padding="10,8" Margin="0,0,0,8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" MinWidth="260" />
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="Tier1: DLL 路径" Click="OnCompileTier1"
+                        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="编译（进程内 · 签名解析）" Click="OnCompile"
                                     Style="{StaticResource PrimaryButtonStyle}" />
-                            <Button Grid.Column="1" Content="Tier2: 官方 exe" Click="OnCompileTier2" />
-                            <TextBlock Grid.Column="3" Text="mod dir:" VerticalAlignment="Center" Margin="16,0,8,0" />
-                            <TextBox Grid.Column="4" x:Name="TxtModDir" VerticalAlignment="Center"
-                                     ToolTip="Tier2 用的 mod 目录（-game 指向它；其下应有 gameinfo.gi；默认 &lt;游戏目录&gt;\csgo）" />
-                        </Grid>
+                            <TextBlock Text="输出：.vXXX_c（KV3 二进制；不可写时回退程序自身目录）" VerticalAlignment="Center"
+                                       Margin="16,0,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                        </WrapPanel>
                     </Border>
 
                     <!-- 输出目录行（t28k：可控编译输出路径，直写不移动） -->
@@ -222,7 +213,7 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="源文件" Binding="{Binding Source}" Width="280" />
                             <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="90" />
-                            <DataGridTextColumn Header="层级" Binding="{Binding Tier}" Width="70" />
+                            <DataGridTextColumn Header="模式" Binding="{Binding Tier}" Width="70" />
                             <DataGridTextColumn Header="耗时(ms)" Binding="{Binding ElapsedMs}" Width="90" />
                             <DataGridTextColumn Header="输出路径" Binding="{Binding OutputPath}" Width="240" />
                             <DataGridTextColumn Header="大小" Binding="{Binding OutputSize}" Width="90" />

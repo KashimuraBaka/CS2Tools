@@ -47,7 +47,7 @@ Start-Sleep -Seconds 8; if ($p.HasExited) { throw "GUI 启动即退出 exit=$($p
 | ② 资产类型表 | DataGrid；「仅有编译器」过滤 + 名称/友好名/扩展名/编译器搜索；数据全部来自加载的配置本身 |
 | ②' subassettypes | **独立标签页**（8 条，字段只有 m_bFollowReferences / m_bAllowDefinitions 开关，无 `_class`/编译器）——不并入主表、不隐藏 |
 | ③ 编译器解析 | 选中类型 → `m_CompilerIdentifier` → 注册表解析 → **条目序号 / 工厂 RVA / 单例 RVA**；未命中时优雅降级显示「Resource type compiler identifier not found」语义，**不崩溃、不显示空指针** |
-| ④ 编译面板 | 多选源文件 → **两级策略**（Tier1 DLL 路径 / Tier2 官方 exe）→ 逐文件：成功/失败/跳过、输出路径+大小+mtime、耗时 |
+| ④ 编译面板 | 多选源文件 → **单一进程内编译**（签名解析；可指定输出目录）→ 逐文件：成功/失败、输出路径+大小+mtime、耗时 |
 | ⑤ 日志面板 | 模块基址 / RVA / 委托 / 返回值 / 错误串 |
 
 ## 3. 关键设计决策
@@ -58,7 +58,7 @@ Start-Sleep -Seconds 8; if ($p.HasExited) { throw "GUI 启动即退出 exit=$($p
 `0xC0000005`——编译路径依赖引擎服务图，而 .NET 对 AccessViolationException
 fail-fast 不可 catch，故一度用 CompileHost 子进程隔离（崩了只是退出码）。
 
-**现状（用户明确禁止额外进程方式）**：Tier1 改为**进程内**，靠
+**现状（用户明确禁止额外进程方式）**：编译改为**全程进程内**（t28q 起无 Tier 之分），靠
 `SDK.Native.EngineServiceGuard` 前置守卫避免进入崩代码：
 
 * IDA 反编译 `AssetConfig_Init`(sub_180187EA0) 显示它是**虚表方法**（a1 为引擎创建的
@@ -72,16 +72,19 @@ fail-fast 不可 catch，故一度用 CompileHost 子进程隔离（崩了只是
 * **守卫做法**：调用前先读这些全局量（带映像边界检查），任缺即**不调用**，
   把「引擎服务图未注册」作为可预期错误上报——应用不崩、原因明确。
 
-**要真正进程内跑通编译，需要引擎服务注册（= 引擎引导：engine2 + filesystem +
-mesh/material 系统的初始化序列）——属重大工程，未做。** 进程内 Tier1 已完成的能力：
-签名解析（13 条 Found 日志）、CreateInterface + 注册表只读验证（43 条）。
+**KG3 类资源（.vnmgraph/.vdata）已端到端跑通**（t28i→t28m）：tier0 原生序列化链路进程内可达，
+编译产物落 `.vXXX_c`（如 viewmodel.vnmgraph → 113178 B，源 1066582 B，9.4x）。
+**其余资源的编译执行仍缺引擎服务注册**（= 引擎引导：engine2 + filesystem + mesh/material
+初始化序列）——属重大工程，未做；这批资源走 SDK 门面会得到明确失败（不调用、不崩）。
 
-### 3.2 两级编译策略
-* **Tier1 = DLL 路径**：`CreateInterface → AssetConfig_Init → GenerateResourceFile`，
-  用 t12 重定位的新 RVA（`GenerateResourceFile 0x188B90` · `AssetConfig_Init 0x187EA0` ·
-  `resolver 0x1884C0` · `config loader 0x1F1B3E0`），如实捕获失败。
-* **Tier2 = 官方 `resourcecompiler.exe`**：`-i <file> -game <moddir> -nop4 -v`。
-Tier1 的失败本身就是有价值的实证结论，UI 不隐藏。
+### 3.2 单一编译路径（t28q：只有一级，无 DLL/exe 选择）
+* **唯一路径 = 进程内签名编译**：`签名解析 → 注册表只读验证 → KV3 类直接编译`。
+  无 DLL/exe 按钮、无 mod dir 字段、不起任何子进程——用户口径「默认就是通过签名进行编译，
+  无需选择 dll 和 exe」。
+* Tier2（官方 `resourcecompiler.exe`，`-i <file> -game <moddir> -nop4 -v`）与
+  CompileHost 子工程均已删除；编译执行体是 `SDK.ResourceCompiler.ResourceCompilerService`，
+  UI 侧 `CompileService.CompileSource` 只是薄适配。
+* 失败本身是有价值的实证结论，UI 不隐藏（如实上报 Stage/Detail）。
 
 ### 3.3 注册表：禁用锚点库旧 RVA，工厂指针实时读
 * 锚点库 `tools\anchors\compiler-identifier-anchors.json` 的 `build_sha256=d1115f9f…` 已**不等于**
@@ -173,4 +176,4 @@ assettypes_common.txt (KV3 text)
 
 2. **运行时**：`CompileService.ResolveHostExe()` 按候选路径再探一次——
 
-两种配置（Debug/Release）下均已验证 Tier1 可达。
+两种配置（Debug/Release）下均已验证进程内编译可达（自检 + GUI 冒烟 + 端到端产物校验）。
