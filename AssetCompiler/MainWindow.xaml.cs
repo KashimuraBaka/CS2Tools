@@ -35,12 +35,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         TxtGameDir.Text = DefaultGameDir;   // 唯一输入：游戏目录；配置/DLL/exe 均由它派生
         TxtModDir.Text = Path.Combine(DefaultGameDir, "csgo");   // Tier2 的 -game mod 目录（默认 <游戏目录>\csgo）
-        // t16：CompileHost 是独立子工程；用候选路径解析（自身输出目录 -> 子工程输出目录 ->
-        // Release/Debug 双探），Debug 构建下也能找到，Tier1 不再不可用。
-        CompileService.HostExe = CompileService.ResolveHostExe(Path.Combine(AppContext.BaseDirectory, "CompileHost.exe"));
-        Log("就绪。默认游戏目录: " + DefaultGameDir);
-        Log("CompileHost: " + CompileService.HostExe + (File.Exists(CompileService.HostExe) ? " (在位，Tier1 可用)" : " (缺失，Tier1 不可用——请先构建 CompileHost 子工程)"));
-        Log("提示：注册表读取为只读操作（t12 实证裸进程安全）；编译调用走隔离子进程。");
+        // t28c：Tier1 改进程内——不再起 CompileHost 子进程（用户禁止额外进程方式）。
+        // 进程内链路：签名解析 -> CreateInterface+注册表只读验证 -> 引擎服务图预检（缺则明确报错，绝不崩）。
+        Log("Tier1: 进程内模式（签名解析 + 只读注册表验证 + 引擎服务图预检）");
     }
 
     // ---------------- 日志 ----------------
@@ -202,12 +199,12 @@ public partial class MainWindow : Window
     {
         if (Sources.Count == 0) { MessageBox.Show(this, "请先添加源文件。", "提示", MessageBoxButton.OK, MessageBoxImage.Information); return; }
         string dll = Path.Combine(GameDir, DefaultDllRelative);
-        Log("=== Tier1（DLL 路径，隔离子进程）开始 ===");
+        Log("=== Tier1（进程内）开始 ===");
         var results = new List<CompileItemResult>();
         foreach (var s in Sources.ToList())
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var o = await System.Threading.Tasks.Task.Run(() => CompileService.RunTier1(dll, DefaultAnchors, s));
+            var o = await System.Threading.Tasks.Task.Run(() => CompileService.RunTier1(GameDir, s));
             sw.Stop();
             results.Add(new CompileItemResult
             {

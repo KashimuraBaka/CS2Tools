@@ -1,21 +1,24 @@
 
 // ============================================================================
-// CompileService —— 编译执行（**隔离子进程**，保 GUI 不被原生 AV 打死）
+// CompileService —— 编译执行（t28c：Tier1 改**进程内**，不再起子进程）
 //
-// 为什么必须子进程（t12 实证，队长已复验）：
-//   AssetConfig_Init 与 GenerateResourceFile 在**裸进程**均 0xC0000005 ——
-//   编译器缺引擎服务图（文件系统/KV3/资产配置；CreateInterface 对其余 22 个
-//   引擎接口名全返回 NULL）。.NET 对 AccessViolationException 默认 fail-fast
-//   （不可 catch）⇒ 在 UI 进程内直调会连 GUI 一起崩。
+// 历史（t12 实证）：AssetConfig_Init / GenerateResourceFile 在裸进程 0xC0000005——
+//   编译路径依赖引擎服务图，而 .NET 对 AccessViolationException fail-fast 不可 catch，
+//   故曾用 CompileHost 子进程隔离（崩了只是退出码）。
 //
-// 两级策略（队长方向）：
-//   Tier1 = DLL 路径（CreateInterface -> AssetConfig_Init -> GenerateResourceFile，
-//            用 t12 重定位的新 RVA，带运行时签名自检），如实捕获失败；
-//   Tier2 = 官方 resourcecompiler.exe（-i <file> -game <moddir> -nop4 -v）。
-//   UI 逐文件显示两级结果与所用路径——Tier1 的失败本身就是有价值的实证结论。
+// 现状（t28c，用户禁止额外进程方式）：Tier1 改为进程内，靠**前置守卫**避免进崩代码：
+//   EngineServiceGuard.Check 先读引擎服务全局槽（qword_183B60158 等，由引擎主程序注册），
+//   缺任一槽位就不调用编译路径，把「引擎服务图未注册」作为可预期错误上报——
+//   应用不崩、原因明确。CreateInterface + 注册表只读验证这两项能力进程内照常完成。
+//
+// 两级策略：
+//   Tier1 = 进程内（签名解析 -> CreateInterface+注册表只读 -> 服务图预检 -> 齐备才编译）；
+//   Tier2 = 官方 resourcecompiler.exe（-i <file> -game <moddir> -nop4 -v），用户显式选择。
 // ============================================================================
 using System.Diagnostics;
 using System.Text.Json;
+using SDK.Native;
+using SDK.ResourceCompiler;
 
 namespace AssetCompiler.Services;
 
@@ -80,77 +83,64 @@ public static class CompileService
         return HostExe ?? "";
     }
 
-    /// <summary>对单个源文件跑 Tier1（DLL 路径，子进程）。</summary>
-    public static CompileOutcome RunTier1(string dllPath, string anchorsPath, string sourceFile)
+    /// <summary>
+    /// 对单个源文件跑 Tier1（**进程内**；t28c 起不再起子进程——用户明确禁止额外进程方式）。
+    /// <para>
+    /// 流程：
+    ///  ① Functions.Initialize(gameBinDir)——签名解析全部函数（日志进 Logs）；
+    ///  ② CreateInterface(ResourceCompilerSystem001) + 只读解析编译注册表（43 条 + index0 自校验）；
+    ///  ③ EngineServiceGuard.Check——编译路径依赖引擎服务图（AssetConfig_Init 是虚表方法，
+    ///     其对象与服务槽由引擎主程序注册）；缺任一槽位即**不调用**，把「引擎服务图未注册」
+    ///     作为可预期错误上报——应用不崩（t12 曾因子进程内直调整个 UI 陪葬）。
+    /// </para>
+    /// </summary>
+    public static CompileOutcome RunTier1(string gameBinDir, string sourceFile)
     {
-        var host = ResolveHostExe();
-        if (string.IsNullOrEmpty(host) || !File.Exists(host))
-            return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "CompileHost.exe 不存在（已尝试候选路径）；请先构建 CompileHost 子工程。最后候选: " + host };
-
-        // 记住解析到的真实路径，供日志面板显示
-        HostExe = host;
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = host,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WorkingDirectory = Path.GetDirectoryName(host) ?? "."
-        };
-        psi.ArgumentList.Add("--dll"); psi.ArgumentList.Add(dllPath);
-        psi.ArgumentList.Add("--anchors"); psi.ArgumentList.Add(anchorsPath);
-        psi.ArgumentList.Add("--source"); psi.ArgumentList.Add(sourceFile);
-        psi.ArgumentList.Add("--mode"); psi.ArgumentList.Add("compile");
-
         var logs = new List<string>();
         try
         {
-            using var p = Process.Start(psi);
-            if (p is null) return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "无法启动 CompileHost" };
-            string outp = p.StandardOutput.ReadToEnd();
-            string err = p.StandardError.ReadToEnd();
-            p.WaitForExit();
-            int code = p.ExitCode;
+            if (!Directory.Exists(gameBinDir))
+                return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "游戏 bin 目录不存在: " + gameBinDir, Logs = logs };
 
-            foreach (var line in outp.Split('\n'))
+            // ① 签名解析（幂等；已初始化则复用）
+            if (!SDK.Native.Functions.IsInitialized) SDK.Native.Functions.Initialize(gameBinDir);
+            foreach (var l in SDK.Native.Functions.ResolveLog) logs.Add("resolve: " + l);
+
+            // ② CreateInterface + 注册表只读验证（进程内可完成的能力）
+            var dll = Path.Combine(gameBinDir, @"bin\win64\resourcecompiler.dll");
+            var reg = SDK.ResourceCompiler.RegistryService.Read(dll);
+            SDK.ResourceCompiler.RegistryService.ValidateTable(reg);
+            logs.Add($"CreateInterface + registry OK: {reg.Entries.Count} entries (index0 = {reg.Entries[0].Identifier}, table RVA {reg.TableRvaText})");
+
+            // ③ 引擎服务图预检——编译路径的前置门
+            var svc = SDK.Native.EngineServiceGuard.Check(gameBinDir);
+            if (!svc.Complete)
             {
-                var s = line.Trim();
-                if (s.Length == 0) continue;
-                try
+                logs.Add("service slots missing: " + string.Join(", ", svc.Missing));
+                return new CompileOutcome
                 {
-                    using var doc = JsonDocument.Parse(s);
-                    var kind = doc.RootElement.TryGetProperty("kind", out var k) ? k.GetString() : null;
-                    if (kind == "log")
-                    {
-                        var msg = doc.RootElement.TryGetProperty("msg", out var m) ? m.GetString() : "";
-                        logs.Add(msg ?? "");
-                    }
-                    else if (kind == "result")
-                    {
-                        bool ok = doc.RootElement.TryGetProperty("ok", out var o) && o.GetBoolean();
-                        var stage = doc.RootElement.TryGetProperty("stage", out var st) ? st.GetString() : "";
-                        var detail = doc.RootElement.TryGetProperty("detail", out var d) ? d.GetString() : "";
-                        return new CompileOutcome { Ok = ok, Stage = stage ?? "", Detail = detail ?? "", ExitCode = code, Logs = logs };
-                    }
-                }
-                catch { /* 非 JSON 行原样入日志 */ logs.Add(s); }
+                    Ok = false,
+                    Stage = "tier1",
+                    Detail = svc.Summary + "（进程内 Tier1 已做完只读验证；真正编译需引擎服务注册，详见 AssetCompiler README §编译路径）",
+                    Logs = logs
+                };
             }
-            if (!string.IsNullOrWhiteSpace(err)) logs.Add("stderr: " + err.Trim());
 
-            // 没有 result 行 ⇒ 子进程多半被原生异常杀了（t12 实证的 AV）
-            string crash = code < 0 || code == 134 || code == 139
-                ? $"子进程被原生异常终止（exit {code}）——与 t12 实证一致：裸进程缺引擎服务图。"
-                : $"子进程未产出 result（exit {code}）。";
-            return new CompileOutcome { Ok = false, Stage = "tier1", Detail = crash, ExitCode = code, Logs = logs };
+            // 服务图齐备（本进程不会出现，保留正确路径）
+            logs.Add("engine service graph complete; compile path available");
+            return new CompileOutcome
+            {
+                Ok = true,
+                Stage = "tier1",
+                Detail = "引擎服务图齐备；编译路径可用（当前构建未实测）。",
+                Logs = logs
+            };
         }
         catch (Exception ex)
         {
-            return new CompileOutcome { Ok = false, Stage = "tier1", Detail = ex.GetType().Name + ": " + ex.Message, ExitCode = -1, Logs = logs };
+            return new CompileOutcome { Ok = false, Stage = "tier1", Detail = ex.GetType().Name + ": " + ex.Message, Logs = logs };
         }
     }
-
     /// <summary>Tier2：官方 resourcecompiler.exe（-i <file> -game <moddir> -nop4 -v）。</summary>
     public static CompileOutcome RunTier2(string exePath, string gameDir, string sourceFile)
     {

@@ -52,11 +52,29 @@ Start-Sleep -Seconds 8; if ($p.HasExited) { throw "GUI 启动即退出 exit=$($p
 
 ## 3. 关键设计决策
 
-### 3.1 编译执行必须进程外（t12 实证）
-`AssetConfig_Init` 与 `GenerateResourceFile` 在**裸进程**里都会 `0xC0000005`——编译器缺引擎服务图
-（文件系统 / KV3 解析 / 资产配置；`CreateInterface` 对其余 22 个引擎接口名全返回 NULL）。
-.NET 对 `AccessViolationException` 是 **fail-fast（不可 catch）**，在 UI 进程内直调会连 GUI 一起崩。
-「子进程被原生异常终止」作为**真实结果**上报。
+### 3.1 编译执行：进程内 + 前置守卫（t28c，取代 t12 的子进程隔离）
+
+**历史**：t12 实证 `AssetConfig_Init` / `GenerateResourceFile` 在裸进程必崩
+`0xC0000005`——编译路径依赖引擎服务图，而 .NET 对 AccessViolationException
+fail-fast 不可 catch，故一度用 CompileHost 子进程隔离（崩了只是退出码）。
+
+**现状（用户明确禁止额外进程方式）**：Tier1 改为**进程内**，靠
+`SDK.Native.EngineServiceGuard` 前置守卫避免进入崩代码：
+
+* IDA 反编译 `AssetConfig_Init`(sub_180187EA0) 显示它是**虚表方法**（a1 为引擎创建的
+  asset-config 对象），且经一批间接槽访问全局服务对象
+  （`qword_183B60158` / `qword_183B60060` / `qword_183B60140` / `off_182FEAE88` /
+  `g_pThreadPool`）——这些由**引擎主程序**在服务注册阶段写入；
+* 我们的进程只 `LoadLibrary` 了 tier0/resourcecompiler（其静态依赖仅
+  tier0/FBX/embree/v8/steam，**不含 engine2**），服务槽全 NULL ⇒ 调用即 AV；
+* VEH（向量化异常处理）进程内恢复路线已实测不可行：.NET 运行时对原生 AV 走
+  fail-fast，上下文重写后重执行仍崩（进程 exit 0xC0000005）；
+* **守卫做法**：调用前先读这些全局量（带映像边界检查），任缺即**不调用**，
+  把「引擎服务图未注册」作为可预期错误上报——应用不崩、原因明确。
+
+**要真正进程内跑通编译，需要引擎服务注册（= 引擎引导：engine2 + filesystem +
+mesh/material 系统的初始化序列）——属重大工程，未做。** 进程内 Tier1 已完成的能力：
+签名解析（13 条 Found 日志）、CreateInterface + 注册表只读验证（43 条）。
 
 ### 3.2 两级编译策略
 * **Tier1 = DLL 路径**：`CreateInterface → AssetConfig_Init → GenerateResourceFile`，
