@@ -224,7 +224,7 @@ public partial class MainWindow : Window
                 Tier = "Tier1",
                 Detail = o.Detail,
                 ElapsedMs = sw.ElapsedMilliseconds,
-                OutputPath = o.Ok && o.Detail.Contains("输出 ") ? o.Detail.Split("输出 ")[1] : "-"
+                OutputPath = o.OutputPath
             });
             foreach (var l in o.Logs) Log("  [host] " + l);
             Log($"Tier1 {Path.GetFileName(s)} => {(o.Ok ? "成功" : "失败")} ({sw.ElapsedMilliseconds} ms): {o.Detail}");

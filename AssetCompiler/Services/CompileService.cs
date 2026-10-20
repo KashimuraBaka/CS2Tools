@@ -26,6 +26,8 @@ public sealed class CompileOutcome
     public string Stage { get; init; } = "";
     public string Detail { get; init; } = "";
     public int ExitCode { get; init; }
+    /// <summary>编译产物路径（t28l：SDK 门面直出）。</summary>
+    public string OutputPath { get; init; } = "-";
     public List<string> Logs { get; init; } = [];
 }
 
@@ -40,114 +42,22 @@ public static class CompileService
     public const int RvaConfigLoader = 0x1F1B3E0;
 
     /// <summary>
-    /// 对单个源文件跑 Tier1（**进程内**；t28c 起不再起子进程——用户明确禁止额外进程方式）。
-    /// <para>
-    /// 流程：
-    ///  ① Functions.Initialize(gameBinDir)——签名解析全部函数（日志进 Logs）；
-    ///  ② CreateInterface(ResourceCompilerSystem001) + 只读解析编译注册表（43 条 + index0 自校验）；
-    ///  ③ EngineServiceGuard.Check——编译路径依赖引擎服务图（AssetConfig_Init 是虚表方法，
-    ///     其对象与服务槽由引擎主程序注册）；缺任一槽位即**不调用**，把「引擎服务图未注册」
-    ///     作为可预期错误上报——应用不崩（t12 曾因子进程内直调整个 UI 陪葬）。
-    /// </para>
+    /// Tier1 = SDK 进程内编译门面（t28l：调用逻辑已沉入
+    /// SDK.ResourceCompiler.ResourceCompilerService.Compile；此处只做 UI 适配）。
     /// </summary>
     public static CompileOutcome RunTier1(string gameBinDir, string sourceFile, string? outputDir = null)
     {
-        var logs = new List<string>();
-        try
+        var r = SDK.ResourceCompiler.ResourceCompilerService.Compile(
+            new SDK.ResourceCompiler.CompileRequest(sourceFile, outputDir, gameBinDir));
+        return new CompileOutcome
         {
-            if (!Directory.Exists(gameBinDir))
-                return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "游戏 bin 目录不存在: " + gameBinDir, Logs = logs };
-
-            // ① 签名解析（幂等；已初始化则复用）
-            if (!Functions.IsInitialized) Functions.Initialize(gameBinDir);
-            foreach (var l in Functions.ResolveLog) logs.Add("resolve: " + l);
-
-            // ② CreateInterface + 注册表只读验证（进程内可完成的能力）
-            var dll = Path.Combine(gameBinDir, @"bin\win64\resourcecompiler.dll");
-            var reg = SDK.ResourceCompiler.RegistryService.Read(dll);
-            SDK.ResourceCompiler.RegistryService.ValidateTable(reg);
-            logs.Add($"CreateInterface + registry OK: {reg.Entries.Count} entries (index0 = {reg.Entries[0].Identifier}, table RVA {reg.TableRvaText})");
-
-            // ③ KV3 类资源（.vnmgraph/.vdata）：产物即 KV3 二进制 ⇒ **进程内直接编译**（t28i）
-            //    序列化是 tier0 内部函数，不碰引擎服务图；大栈线程防深层树爆栈。
-            var ext = Path.GetExtension(sourceFile).ToLowerInvariant();
-            if (ext is ".vnmgraph" or ".vdata")
-            {
-                var srcText = File.ReadAllText(sourceFile);
-                if (!srcText.TrimStart().StartsWith("<!--", StringComparison.Ordinal))
-                    return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "不是 KV3 文本源（缺 kv3 头）：" + sourceFile, Logs = logs };
-
-                // t28j：按引擎资源编译链的口吻发消息（assetsystem 的 RecompileAsset 同款通道）
-                var rel = Path.GetRelativePath(gameBinDir, sourceFile).Replace(Path.DirectorySeparatorChar, '/');
-                SDK.Native.EngineLog.WriteRecompiling(rel);
-                logs.Add("engine-log: Recompiling resource asset: '" + rel + "'");
-
-                byte[]? outBytes = null; string? compileErr = null;
-                var th = new System.Threading.Thread(() =>
-                {
-                    try { var r = SDK.Tier0.Kv3NativeArena.CompileKv3Binary(srcText); if (r.Ok) outBytes = Convert.FromBase64String(r.Json); else compileErr = r.Detail; }
-                    catch (Exception ex) { compileErr = ex.GetType().Name + ": " + ex.Message; }
-                }, 32 * 1024 * 1024);   // 二进制序列化器递归深、栈帧大，1MB 级图形需大栈
-                th.Start(); th.Join();
-
-                if (outBytes is null)
-                    return new CompileOutcome { Ok = false, Stage = "tier1", Detail = "KV3 二进制编译失败: " + compileErr, Logs = logs };
-
-                // t28k：输出路径可控——outputDir 参数 > OutputDirectory 属性 > 源目录；
-                // 一律直接 WriteAllBytes 落到目标路径，不做 File.Move。
-                var wantDir = string.IsNullOrWhiteSpace(outputDir) ? OutputDirectory : outputDir;
-                var outName = Path.GetFileName(sourceFile) + "_c";
-                var outPath = string.IsNullOrWhiteSpace(wantDir) ? sourceFile + "_c" : Path.Combine(wantDir, outName);
-                try
-                {
-                    var dir = Path.GetDirectoryName(outPath);
-                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                    File.WriteAllBytes(outPath, outBytes);
-                }
-                catch (Exception ex)
-                {
-                    // 目标不可写（只读/无权限）时回退程序自身目录，仍不走 File.Move
-                    var fallback = Path.Combine(AppContext.BaseDirectory, outName);
-                    File.WriteAllBytes(fallback, outBytes);
-                    logs.Add($"输出目录不可写（{ex.GetType().Name}），回退: {fallback}");
-                    outPath = fallback;
-                }
-                logs.Add($"KV3 binary compiled in-process: {outBytes.Length} B -> {outPath}");
-                SDK.Native.EngineLog.Write("Reloading Resource [1/1]: " + rel, SDK.Native.LogSeverity.Message);
-                logs.Add("engine-log: Reloading Resource [1/1]: " + rel);
-                return new CompileOutcome { Ok = true, Stage = "tier1", Detail = $"KV3 二进制编译成功：{outBytes.Length} B（VK3 魔数 + 格式 GUID），输出 {outPath}", ExitCode = 0, Logs = logs };
-            }
-
-            // ④ 引擎服务图预检——编译路径的前置门
-            var svc = SDK.Native.EngineServiceGuard.Check(gameBinDir);
-            if (!svc.Complete)
-            {
-                logs.Add("service slots missing: " + string.Join(", ", svc.Missing));
-                return new CompileOutcome
-                {
-                    Ok = false,
-                    Stage = "tier1",
-                    Detail = svc.Summary + "（进程内 Tier1 已做完只读验证；真正编译需引擎服务注册，详见 AssetCompiler README §编译路径）",
-                    Logs = logs
-                };
-            }
-
-            // 服务图齐备（本进程不会出现，保留正确路径）
-            logs.Add("engine service graph complete; compile path available");
-            return new CompileOutcome
-            {
-                Ok = true,
-                Stage = "tier1",
-                Detail = "引擎服务图齐备；编译路径可用（当前构建未实测）。",
-                Logs = logs
-            };
-        }
-        catch (Exception ex)
-        {
-            return new CompileOutcome { Ok = false, Stage = "tier1", Detail = ex.GetType().Name + ": " + ex.Message, Logs = logs };
-        }
+            Ok = r.Ok,
+            Stage = r.Stage,
+            Detail = r.Detail,
+            OutputPath = r.OutputPath ?? "-",
+            Logs = r.Logs?.ToList() ?? new List<string>(),
+        };
     }
-
     /// <summary>Tier2：官方 resourcecompiler.exe（-i <file> -game <moddir> -nop4 -v）。</summary>
     public static CompileOutcome RunTier2(string exePath, string gameDir, string sourceFile)
     {
