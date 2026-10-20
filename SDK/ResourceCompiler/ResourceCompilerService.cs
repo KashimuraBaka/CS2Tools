@@ -136,7 +136,7 @@ public static class ResourceCompilerService
     /// 确定产物落地位置（t28t）。规则：
     ///  * 用户**显式指定**了输出目录 ⇒ 只用它，失败即失败——绝不静默改道到别处（t28s 教训：
     ///    那会让产物不知不觉落在意想不到的位置）；
-    ///  * 未指定 ⇒ 源文件同目录 → %TEMP%\CS2-Tools-Compiled（编译只读位置的源文件时才有用）。
+     ///  * 未指定 ⇒ 源文件同目录 → 项目内 Compiled\ → %TEMP%\CS2-Tools-Compiled（编译只读位置的源文件时才有用）。
     /// 每个候选只真实写一次；写本身就是可写性判据（ACL/属性查不出沙盒拒绝），
     /// 但**不会**再写探针文件做预检——那会把同样的 UnauthorizedAccessException 多抛一遍。
     /// </summary>
@@ -156,7 +156,9 @@ public static class ResourceCompilerService
         else
         {
             Add(src + "_c");                                                  // 源文件同目录
-            Add(Path.Combine(Path.GetTempPath(), "CS2-Tools-Compiled", outName));
+            var project = OutputLocations.ProjectLocalDirectory();              // 项目内 Compiled：沙盒内可写
+            if (project is not null) Add(Path.Combine(project, outName));
+            Add(Path.Combine(OutputLocations.TempDirectory(), outName));       // 最后兜底（沙盒内多半不可写）
         }
 
         foreach (var cand in candidates)

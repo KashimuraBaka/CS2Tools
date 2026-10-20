@@ -33,6 +33,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // 预填项目内产物目录（t28u）：DSH 沙盒把进程写入关在工作区内——项目目录可写、%TEMP% 不可写；
+        // 显式填出来（用户可改，清空则回退源目录），不静默改道；解析不到（独立发布布局）就留空。
+        TxtOutputDir.Text = SDK.ResourceCompiler.OutputLocations.ProjectLocalDirectory() ?? "";
         TxtGameDir.Text = DefaultGameDir;   // 唯一输入：游戏目录；配置/DLL/exe 均由它派生
         // t28q：唯一编译路径——SDK 签名解析后的进程内编译（不起任何子进程，无 DLL/exe 选择）。
         // 链路：签名解析 -> CreateInterface+注册表只读 -> KV3 类资源直接编译（tier0 原生序列化器）

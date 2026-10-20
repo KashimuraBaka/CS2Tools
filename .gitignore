@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# 进程内编译产物（t28u，替代原先被静默写进 bin/ 的回退）
+/Compiled/
+**/*.v*_c
