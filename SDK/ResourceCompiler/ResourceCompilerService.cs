@@ -132,38 +132,51 @@ public static class ResourceCompilerService
      /// **不含程序自身/bin 目录**（t28s）：那是构建输出区，产物混进去像构建垃圾，
      /// 且会掩盖「目标被沙盒或只读拒绝」的真实原因。
     /// </summary>
+    /// <summary>
+    /// 确定产物落地位置（t28t）。规则：
+    ///  * 用户**显式指定**了输出目录 ⇒ 只用它，失败即失败——绝不静默改道到别处（t28s 教训：
+    ///    那会让产物不知不觉落在意想不到的位置）；
+    ///  * 未指定 ⇒ 源文件同目录 → %TEMP%\CS2-Tools-Compiled（编译只读位置的源文件时才有用）。
+    /// 每个候选只真实写一次；写本身就是可写性判据（ACL/属性查不出沙盒拒绝），
+    /// 但**不会**再写探针文件做预检——那会把同样的 UnauthorizedAccessException 多抛一遍。
+    /// </summary>
     private static string? ResolveWritableOutput(string? outputDir, string src, string outName, byte[] bytes, List<string> logs)
     {
         var cleaned = (outputDir ?? "").Trim().Trim('"').Trim();   // 容忍「复制为路径」带来的引号
-        var tempDir = Path.Combine(Path.GetTempPath(), "CS2-Tools-Compiled");
-        var candidates = new List<string>
-        {
-            cleaned.Length > 0 ? Path.Combine(cleaned, outName) : "",
-            src + "_c",                                    // 源文件同目录
-            Path.Combine(tempDir, outName),
-        };
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var firstTried = true;
+        var candidates = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Add(string p) { if (p.Length > 0 && seen.Add(p)) candidates.Add(p); }
+
+        if (cleaned.Length > 0)
+        {
+            // 用户指定：独占，不回落
+            Add(Path.Combine(cleaned, outName));
+        }
+        else
+        {
+            Add(src + "_c");                                                  // 源文件同目录
+            Add(Path.Combine(Path.GetTempPath(), "CS2-Tools-Compiled", outName));
+        }
+
         foreach (var cand in candidates)
         {
-            if (cand.Length == 0 || !seen.Add(cand)) continue;
             try
             {
                 var dir = Path.GetDirectoryName(cand);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
                 File.WriteAllBytes(cand, bytes);
-                if (!firstTried) logs.Add($"注意：首选输出位置不可写，已回退到 {cand}");
+                if (candidates.Count > 1 && !ReferenceEquals(cand, candidates[0]))
+                    logs.Add($"注意：首选位置不可写，已回退到 {cand}");
                 return cand;
             }
             catch (Exception ex)
             {
                 var why = ex is UnauthorizedAccessException
-                    ? "被拒绝（UnauthorizedAccessException：只读 / 沙盒 / 安全策略拦截）"
+                    ? "被拒绝（UnauthorizedAccessException：只读 / 沙盒 / 安全策略拦截——与磁盘权限无关）"
                     : ex.GetType().Name + ": " + ex.Message;
                 logs.Add($"输出位置不可用：{cand} —— {why}");
             }
-            firstTried = false;
         }
         return null;
     }

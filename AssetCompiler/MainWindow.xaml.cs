@@ -222,18 +222,6 @@ public partial class MainWindow : Window
         string outArg = TxtOutputDir.Text.Trim();
         string? outDir = string.IsNullOrWhiteSpace(outArg) ? null : outArg;
 
-        // 预检（t28s）：用户显式指定了输出目录就必须可写——否则编译完才发现写不进去，
-        // 产物会悄悄落到别处。这里先探一次，不可写就不开始编译。
-        if (outDir is not null && !IsDirectoryWritable(outDir, out var preErr))
-        {
-            Log("输出目录不可写: " + outDir + " —— " + preErr);
-            Log("未开始编译。请改选输出目录（例如工作区内的路径），或清空输出目录按候选顺序回退。");
-            MessageBox.Show(this,
-                "输出目录不可写，编译未开始：" + Environment.NewLine + outDir + Environment.NewLine + preErr +
-                Environment.NewLine + "请改选一个可写目录，或清空「输出目录」让程序按候选顺序回退。",
-                "输出目录不可写", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
         var files = Sources.ToList();
 
         Log("=== 编译开始（进程内：签名解析 + tier0 原生链）===");
@@ -265,30 +253,6 @@ public partial class MainWindow : Window
             // async void 里未处理异常会直接崩掉 GUI；兜住并如实上报
             Log("ERROR: " + ex.GetType().FullName + ": " + ex.Message);
             MessageBox.Show(this, ex.Message, "编译失败（未处理异常）", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-    /// <summary>
-    /// 目录可写性实测（t28s）：建目录（若缺）→ 写一个探针文件 → 删掉。
-    /// 比「看属性」可靠：UnauthorizedAccessException 常由沙盒/只读/安全策略引起，
-    /// 与磁盘权限是两回事，只有真写一次才知道。
-    /// </summary>
-    private static bool IsDirectoryWritable(string dir, out string err)
-    {
-        err = "";
-        try
-        {
-            Directory.CreateDirectory(dir);
-            var probe = Path.Combine(dir, ".cs2tools-write-probe");
-            File.WriteAllBytes(probe, [1]);
-            File.Delete(probe);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            err = ex is UnauthorizedAccessException
-                ? "被拒绝（UnauthorizedAccessException：只读 / 沙盒 / 安全策略拦截）"
-                : ex.GetType().Name + ": " + ex.Message;
-            return false;
         }
     }
 }
