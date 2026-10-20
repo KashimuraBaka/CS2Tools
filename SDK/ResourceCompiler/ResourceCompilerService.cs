@@ -111,25 +111,60 @@ public static class ResourceCompilerService
         if (outBytes is null)
             return new CompileResult(false, "serialize", "KV3 二进制编译失败: " + compileErr, Logs: logs);
 
-        // 输出路径：outputDir > 源目录；直接 WriteAllBytes，零 File.Move
+        // 输出路径（t28s）：候选顺序逐个尝试、逐条记录；不再静默写进 build 输出目录
+        // （那样产物看起来像构建垃圾，且掩盖了真实原因）。直接 WriteAllBytes，零 File.Move。
         var outName = Path.GetFileName(src) + "_c";
-        var outPath = string.IsNullOrWhiteSpace(outputDir) ? src + "_c" : Path.Combine(outputDir, outName);
-        try
-        {
-            var dir = Path.GetDirectoryName(outPath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-            File.WriteAllBytes(outPath, outBytes);
-        }
-        catch (Exception ex)
-        {
-            var fallback = Path.Combine(AppContext.BaseDirectory, outName);
-            File.WriteAllBytes(fallback, outBytes);
-            logs.Add($"输出目录不可写（{ex.GetType().Name}），回退: {fallback}");
-            outPath = fallback;
-        }
+        var outPath = ResolveWritableOutput(outputDir, src, outName, outBytes!, logs);
+        if (outPath is null)
+            return new CompileResult(false, "output",
+                "所有候选输出位置都不可用（逐个尝试见上方日志）。UnauthorizedAccessException 多半是被沙盒或安全策略拦截（而非磁盘权限）——请把输出目录改到允许写入的位置，例如当前工作区。",
+                Logs: logs);
         logs.Add($"KV3 binary compiled in-process: {outBytes.Length} B -> {outPath}");
         EngineLog.Write("Reloading Resource [1/1]: " + rel, LogSeverity.Message);
         logs.Add("engine-log: Reloading Resource [1/1]: " + rel);
         return new CompileResult(true, "kv3-binary", $"KV3 二进制编译成功：{outBytes.Length} B（VK3 魔数 + 格式 GUID）", outPath, logs);
+    }
+
+    /// <summary>
+    /// 按候选顺序找第一个可写位置（t28s）。逐个尝试、逐条记录成败；
+     /// 全失败返回 null（由调用方明确报错，不悄悄落地）。
+     /// 候选顺序：用户指定输出目录 → 源文件同目录 → %TEMP%\CS2-Tools-Compiled。
+     /// **不含程序自身/bin 目录**（t28s）：那是构建输出区，产物混进去像构建垃圾，
+     /// 且会掩盖「目标被沙盒或只读拒绝」的真实原因。
+    /// </summary>
+    private static string? ResolveWritableOutput(string? outputDir, string src, string outName, byte[] bytes, List<string> logs)
+    {
+        var cleaned = (outputDir ?? "").Trim().Trim('"').Trim();   // 容忍「复制为路径」带来的引号
+        var tempDir = Path.Combine(Path.GetTempPath(), "CS2-Tools-Compiled");
+        var candidates = new List<string>
+        {
+            cleaned.Length > 0 ? Path.Combine(cleaned, outName) : "",
+            src + "_c",                                    // 源文件同目录
+            Path.Combine(tempDir, outName),
+        };
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var firstTried = true;
+        foreach (var cand in candidates)
+        {
+            if (cand.Length == 0 || !seen.Add(cand)) continue;
+            try
+            {
+                var dir = Path.GetDirectoryName(cand);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllBytes(cand, bytes);
+                if (!firstTried) logs.Add($"注意：首选输出位置不可写，已回退到 {cand}");
+                return cand;
+            }
+            catch (Exception ex)
+            {
+                var why = ex is UnauthorizedAccessException
+                    ? "被拒绝（UnauthorizedAccessException：只读 / 沙盒 / 安全策略拦截）"
+                    : ex.GetType().Name + ": " + ex.Message;
+                logs.Add($"输出位置不可用：{cand} —— {why}");
+            }
+            firstTried = false;
+        }
+        return null;
     }
 }

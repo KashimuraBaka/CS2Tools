@@ -193,7 +193,7 @@
                         <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <Button Content="编译（进程内 · 签名解析）" Click="OnCompile"
                                     Style="{StaticResource PrimaryButtonStyle}" />
-                            <TextBlock Text="输出：.vXXX_c（KV3 二进制；不可写时回退程序自身目录）" VerticalAlignment="Center"
+                            <TextBlock Text="输出：.vXXX_c（KV3 二进制；输出目录不可写将明确报错，不会悄悄落到别处）" VerticalAlignment="Center"
                                        Margin="16,0,0,0" Style="{StaticResource SecondaryTextStyle}" />
                         </WrapPanel>
                     </Border>
@@ -203,7 +203,7 @@
                         <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="输出目录:" VerticalAlignment="Center" Margin="0,0,8,0" />
                             <TextBox x:Name="TxtOutputDir" Width="380" VerticalAlignment="Center" Margin="0,0,8,0"
-                                     ToolTip="编译产物（.vXXX_c）输出目录；留空 = 与源文件同目录。目标不可写时自动回退到程序自身目录。" />
+                                     ToolTip="编译产物（.vXXX_c）输出目录；留空 = 与源文件同目录。指定目录不可写时，编译前就会提示，不会静默改道。" />
                             <Button Content="浏览..." Click="OnBrowseOutputDir" />
                             <Button Content="清空" Click="OnClearOutputDir" Margin="4,0,0,0" />
                         </WrapPanel>

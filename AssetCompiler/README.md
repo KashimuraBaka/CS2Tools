@@ -85,6 +85,11 @@ fail-fast 不可 catch，故一度用 CompileHost 子进程隔离（崩了只是
   CompileHost 子工程均已删除；编译执行体是 `SDK.ResourceCompiler.ResourceCompilerService`，
   UI 侧 `CompileService.CompileSource` 只是薄适配。
 * 失败本身是有价值的实证结论，UI 不隐藏（如实上报 Stage/Detail）。
+* **输出目录（t28s）**：用户指定了就必须可写——编译前先实测（建目录 → 写探针 → 删），
+  不可写就提示并**不开始编译**。指定目录留空时按候选顺序落地：源文件同目录 →
+  `%TEMP%\CS2-Tools-Compiled`；全部不可用则明确报错，**绝不**悄悄写进程序自身的
+  bin 目录（那会让产物看起来像构建垃圾，并掩盖真实原因）。`UnauthorizedAccessException`
+  多半是被沙盒/只读/安全策略拦截，与磁盘权限是两回事。
 
 ### 3.2.1 线程口径：WPF 控件只能由 UI 线程访问（t28r 修复，防回退）
 * **症状**：点「编译」抛 `InvalidOperationException: 调用线程无法访问此对象，因为另一个线程拥有该对象`，
