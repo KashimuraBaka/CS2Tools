@@ -207,29 +207,49 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// 编译（t28q：唯一路径——SDK 签名解析后的进程内编译；不再提供 DLL/exe 选择）。
+    /// 线程口径（t28r 修复）：WPF 控件只能由 UI 线程访问——凡读 TxtXxx 的地方必须在
+    /// await 之前（UI 线程）取值成局部变量，禁止写进 Task.Run 的 lambda（跑到线程池线程，
+    /// 会抛 InvalidOperationException「调用线程无法访问此对象，因为另一个线程拥有该对象」）。
     /// </summary>
     private async void OnCompile(object sender, RoutedEventArgs e)
     {
         if (Sources.Count == 0) { MessageBox.Show(this, "请先添加源文件。", "提示", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+
+        // await 之前取值：WPF 控件只能由 UI 线程访问（t28r：此前在 Task.Run lambda 里读 GameDir，
+        // 跑到线程池线程抛 InvalidOperationException「调用线程无法访问此对象」）。
+        string gameDir = GameDir;
+        string outArg = TxtOutputDir.Text.Trim();
+        string? outDir = string.IsNullOrWhiteSpace(outArg) ? null : outArg;
+        var files = Sources.ToList();
+
         Log("=== 编译开始（进程内：签名解析 + tier0 原生链）===");
+        Log("签名根: " + gameDir + (outDir is null ? "" : "；输出目录: " + outDir));
         var results = new List<CompileItemResult>();
-        foreach (var s in Sources.ToList())
+        try
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            var outDir = TxtOutputDir.Text.Trim();
-            var o = await Task.Run(() => CompileService.CompileSource(GameDir, s, string.IsNullOrWhiteSpace(outDir) ? null : outDir));
-            sw.Stop();
-            results.Add(new CompileItemResult
+            foreach (var s in files)
             {
-                Source = Path.GetFileName(s),
-                Status = o.Ok ? "成功" : "失败",
-                Tier = "进程内",
-                Detail = o.Detail,
-                ElapsedMs = sw.ElapsedMilliseconds,
-                OutputPath = o.OutputPath
-            });
-            foreach (var l in o.Logs) Log("  [sdk] " + l);
-            Log($"{Path.GetFileName(s)} => {(o.Ok ? "成功" : "失败")} ({sw.ElapsedMilliseconds} ms): {o.Detail}");
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var o = await Task.Run(() => CompileService.CompileSource(gameDir, s, outDir));
+                sw.Stop();
+                results.Add(new CompileItemResult
+                {
+                    Source = Path.GetFileName(s),
+                    Status = o.Ok ? "成功" : "失败",
+                    Tier = "进程内",
+                    Detail = o.Detail,
+                    ElapsedMs = sw.ElapsedMilliseconds,
+                    OutputPath = o.OutputPath
+                });
+                foreach (var l in o.Logs) Log("  [sdk] " + l);
+                Log($"{Path.GetFileName(s)} => {(o.Ok ? "成功" : "失败")} ({sw.ElapsedMilliseconds} ms): {o.Detail}");
+            }
+            GridCompile.ItemsSource = results;
         }
-        GridCompile.ItemsSource = results;
+        catch (Exception ex)
+        {
+            // async void 里未处理异常会直接崩掉 GUI；兜住并如实上报
+            Log("ERROR: " + ex.GetType().FullName + ": " + ex.Message);
+            MessageBox.Show(this, ex.Message, "编译失败（未处理异常）", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }}

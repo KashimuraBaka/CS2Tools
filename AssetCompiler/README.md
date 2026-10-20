@@ -86,6 +86,20 @@ fail-fast 不可 catch，故一度用 CompileHost 子进程隔离（崩了只是
   UI 侧 `CompileService.CompileSource` 只是薄适配。
 * 失败本身是有价值的实证结论，UI 不隐藏（如实上报 Stage/Detail）。
 
+### 3.2.1 线程口径：WPF 控件只能由 UI 线程访问（t28r 修复，防回退）
+* **症状**：点「编译」抛 `InvalidOperationException: 调用线程无法访问此对象，因为另一个线程拥有该对象`，
+  栈顶落在 `private string GameDir => TxtGameDir.Text.Trim();`。
+* **根因**：`GameDir` 读的是 WPF 控件 `TxtGameDir.Text`，却被写进 `await Task.Run(())` 的 lambda 里——
+  编译在**线程池线程**上跑，该线程访问 UI 控件即抛。`Task.Run` 的 lambda 体运行在另一个线程，
+  不是 UI 线程。
+* **规则**：**凡读 `TxtXxx` / 绑定属性，必须在第一个 `await` 之前（此时仍在 UI 线程）取成局部变量**，
+  lambda 里只能引用这些局部变量。
+* **回归探针**：`temp\t49-probes\UiCompileProbe`（STA 线程建真实 `MainWindow`，反射调用真实
+  `OnCompile`；PASS 判据 = 结果行 1 条且 Status=成功、产物路径非 `-`、日志无 `ERROR:`）。
+  已验证：修复版 exit=0 PASS，把 buggy 行还原后 exit=2 FAIL——探针能真正抓住该回归。
+* `async void` 里未处理异常会直接崩掉 GUI：`OnCompile` 已整体包 try/catch，兜住并写日志 + 弹窗，
+  不再静默闪退。
+
 ### 3.3 注册表：禁用锚点库旧 RVA，工厂指针实时读
 * 锚点库 `tools\anchors\compiler-identifier-anchors.json` 的 `build_sha256=d1115f9f…` 已**不等于**
   盘上的 `204E16E5…`（游戏 10-17 更新）。helper 的 `ValidateBuild` 会抛异常——这正是它该做的，
